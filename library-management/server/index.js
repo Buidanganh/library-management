@@ -447,18 +447,22 @@ async function handleRequest(req, res) {
   }
 }
 
-const server = http.createServer(handleRequest);
+if (require.main === module) {
+  const server = http.createServer(handleRequest);
 
-server.on("error", (error) => {
-  if (error.code === "EADDRINUSE") {
-    console.error(`Port ${PORT} dang bi chiem. Hay tat process cu hoac chay voi PORT khac.`);
-    console.error(`Vi du: $env:PORT=4001; npm run server`);
-    process.exit(1);
-  }
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(`Port ${PORT} dang bi chiem. Hay tat process cu hoac chay voi PORT khac.`);
+      console.error(`Vi du: $env:PORT=4001; npm run server`);
+      process.exit(1);
+    }
 
-  throw error;
-});
+    throw error;
+  });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Library API dang chay tai http://127.0.0.1:${PORT}`);
-});
+  server.listen(PORT, "127.0.0.1", () => {
+    console.log(`Library API dang chay tai http://127.0.0.1:${PORT}`);
+  });
+}
+
+module.exports = handleRequest;

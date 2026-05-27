@@ -1,7 +1,9 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const DB_FILE = path.join(__dirname, "library.db.json");
+const DB_FILE = process.env.VERCEL
+  ? path.join("/tmp", "library.db.json")
+  : path.join(__dirname, "library.db.json");
 
 const defaultData = {
   users: [

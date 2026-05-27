@@ -1,0 +1,79 @@
+{
+  "books": [
+    {
+      "id": 1,
+      "title": "Clean Code",
+      "author": "Robert C. Martin",
+      "category": "Lap trinh",
+      "publisher": "Prentice Hall",
+      "year": "2008",
+      "quantity": 10,
+      "shelfLocation": "Ke A1",
+      "description": "Sach ve cach viet ma nguon sach va de bao tri."
+    },
+    {
+      "id": 2,
+      "title": "Design Patterns",
+      "author": "Erich Gamma",
+      "category": "Ky thuat phan mem",
+      "publisher": "Addison-Wesley",
+      "year": "1994",
+      "quantity": 6,
+      "shelfLocation": "Ke B2",
+      "description": "Cac mau thiet ke pho bien trong lap trinh huong doi tuong."
+    },
+    {
+      "id": 3,
+      "title": "You Don't Know JS",
+      "author": "Kyle Simpson",
+      "category": "JavaScript",
+      "publisher": "O'Reilly",
+      "year": "2015",
+      "quantity": 8,
+      "shelfLocation": "Ke C1",
+      "description": "Giai thich sau ve ngon ngu JavaScript."
+    },
+    {
+      "id": 4,
+      "title": "Tiểu Sử Bùi Đăng Anh",
+      "author": "Anh Anh",
+      "category": "Tiểu sử",
+      "publisher": "Anh",
+      "year": "2001",
+      "quantity": 9,
+      "shelfLocation": "A1",
+      "description": "Tiểu sử"
+    }
+  ],
+  "readers": [
+    {
+      "id": 1,
+      "name": "Nguyen Van An",
+      "email": "an@example.com",
+      "phone": "0901000001"
+    },
+    {
+      "id": 2,
+      "name": "Tran Thi Binh",
+      "email": "binh@example.com",
+      "phone": "0901000002"
+    },
+    {
+      "id": 3,
+      "name": "Le Minh Chau",
+      "email": "chau@example.com",
+      "phone": "0901000003"
+    }
+  ],
+  "loans": [
+    {
+      "id": 1,
+      "readerId": 1,
+      "bookId": 2,
+      "borrowedDate": "2026-05-10",
+      "dueDate": "2026-05-24",
+      "returnedDate": null,
+      "status": "borrowed"
+    }
+  ]
+}

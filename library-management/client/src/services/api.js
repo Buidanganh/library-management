@@ -2,7 +2,19 @@ const API_URL = import.meta.env.VITE_API_URL || "";
 
 async function handleResponse(response) {
   const content = await response.text();
-  const payload = content ? JSON.parse(content) : {};
+  let payload = {};
+
+  if (content) {
+    try {
+      payload = JSON.parse(content);
+    } catch {
+      throw new Error(
+        response.ok
+          ? "API trả về dữ liệu không hợp lệ."
+          : `API không trả về JSON (${response.status}). Hãy kiểm tra route /api trên Vercel.`
+      );
+    }
+  }
 
   if (!response.ok) {
     throw new Error(payload.error || payload.message || response.statusText || "Lỗi API");

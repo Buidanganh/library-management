@@ -7,7 +7,7 @@ import BookCreate from "../pages/BookCreate";
 import Readers from "../pages/Readers";
 import Borrow from "../pages/Borrow";
 import Overdue from "../pages/Overdue";
-import { createBook, updateBook, deleteBook } from "../services/api";
+import { createBook, deleteBook, updateBook } from "../services/api";
 
 function Layout({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
@@ -83,7 +83,7 @@ function Layout({ user, onLogout }) {
     },
     borrow: {
       title: "Mượn / Trả sách",
-      subtitle: "Quản lý phiếu mượn và trả sách.",
+      subtitle: "Quản lý phiếu mượn, gia hạn và trả sách.",
     },
     overdue: {
       title: "Sách quá hạn",

@@ -1,10 +1,21 @@
-﻿import { useEffect, useState } from "react";
-import { borrowBook, getBooks, getLoans, getReaders, returnLoan } from "../services/api";
+import { useEffect, useMemo, useState } from "react";
+import { borrowBook, extendLoan, getBooks, getLoans, getReaders, returnLoan } from "../services/api";
+
+const MAX_ACTIVE_LOANS_PER_READER = 5;
 
 const getDefaultDueDate = () =>
   new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
+
+const getToday = () => new Date().toISOString().split("T")[0];
+
+function getStatusLabel(status) {
+  if (status === "borrowed") return "Đang mượn";
+  if (status === "overdue") return "Quá hạn";
+  if (status === "returned") return "Đã trả";
+  return status;
+}
 
 function Borrow() {
   const [readers, setReaders] = useState([]);
@@ -13,6 +24,8 @@ function Borrow() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [formData, setFormData] = useState({
     readerId: "",
     bookId: "",
@@ -53,6 +66,57 @@ function Borrow() {
     initialize();
   }, []);
 
+  const selectedReader = useMemo(
+    () => readers.find((reader) => reader.id === Number(formData.readerId)),
+    [readers, formData.readerId]
+  );
+
+  const selectedBook = useMemo(
+    () => books.find((book) => book.id === Number(formData.bookId)),
+    [books, formData.bookId]
+  );
+
+  const selectedReaderActiveLoans = Number(selectedReader?.booksBorrowed || 0);
+  const selectedReaderReachedLimit =
+    selectedReaderActiveLoans >= MAX_ACTIVE_LOANS_PER_READER;
+
+  const selectedReaderAlreadyBorrowingBook = useMemo(
+    () =>
+      Boolean(formData.readerId) &&
+      Boolean(formData.bookId) &&
+      loans.some(
+        (loan) =>
+          loan.readerId === Number(formData.readerId) &&
+          loan.bookId === Number(formData.bookId) &&
+          loan.status !== "returned"
+      ),
+    [loans, formData.readerId, formData.bookId]
+  );
+
+  const filteredLoans = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return loans.filter((loan) => {
+      const matchesStatus = !statusFilter || loan.status === statusFilter;
+      const matchesQuery =
+        !query ||
+        [loan.readerName, loan.bookTitle, String(loan.id)].some((value) =>
+          String(value || "").toLowerCase().includes(query)
+        );
+
+      return matchesStatus && matchesQuery;
+    });
+  }, [loans, searchQuery, statusFilter]);
+
+  const loanSummary = useMemo(
+    () => ({
+      borrowed: loans.filter((loan) => loan.status === "borrowed").length,
+      overdue: loans.filter((loan) => loan.status === "overdue").length,
+      returned: loans.filter((loan) => loan.status === "returned").length,
+    }),
+    [loans]
+  );
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prevState) => ({
@@ -70,7 +134,21 @@ function Borrow() {
       return;
     }
 
-    const selectedBook = books.find((book) => book.id === Number(bookId));
+    if (new Date(dueDate) < new Date(getToday())) {
+      alert("Hạn trả không được nằm trong quá khứ.");
+      return;
+    }
+
+    if (selectedReaderReachedLimit) {
+      alert(`Độc giả đã mượn tối đa ${MAX_ACTIVE_LOANS_PER_READER} sách.`);
+      return;
+    }
+
+    if (selectedReaderAlreadyBorrowingBook) {
+      alert("Độc giả đang mượn sách này, không thể tạo phiếu trùng.");
+      return;
+    }
+
     const availableQuantity = selectedBook?.availableQuantity ?? selectedBook?.quantity;
 
     if (!selectedBook || availableQuantity <= 0) {
@@ -90,12 +168,34 @@ function Borrow() {
       setFormData({
         readerId: "",
         bookId: "",
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
+        dueDate: getDefaultDueDate(),
       });
     } catch (err) {
       alert(err.message || "Không thể tạo phiếu mượn.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleExtend = async (loan) => {
+    const defaultDate = new Date(
+      new Date(loan.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .split("T")[0];
+    const nextDueDate = window.prompt("Nhập hạn trả mới (YYYY-MM-DD):", defaultDate);
+
+    if (!nextDueDate) {
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await extendLoan(loan.id, nextDueDate);
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Không thể gia hạn phiếu mượn.");
     } finally {
       setSubmitting(false);
     }
@@ -123,12 +223,15 @@ function Borrow() {
     (book) => (book.availableQuantity ?? book.quantity) > 0
   );
 
+  const canSubmitBorrow =
+    !submitting && !selectedReaderReachedLimit && !selectedReaderAlreadyBorrowingBook;
+
   return (
     <div>
       <div className="page-title row-between">
         <div>
           <h2>Mượn / Trả sách</h2>
-          <p>Quản lý phiếu mượn và trả sách trực tiếp với backend.</p>
+          <p>Quản lý phiếu mượn, gia hạn và trả sách trực tiếp với backend.</p>
         </div>
       </div>
 
@@ -143,7 +246,7 @@ function Borrow() {
               <option value="">Chọn độc giả</option>
               {readers.map((reader) => (
                 <option key={reader.id} value={reader.id}>
-                  {reader.name}
+                  {reader.name} - đang mượn {reader.booksBorrowed ?? 0}/{MAX_ACTIVE_LOANS_PER_READER}
                 </option>
               ))}
             </select>
@@ -166,15 +269,29 @@ function Borrow() {
             <input
               type="date"
               name="dueDate"
+              min={getToday()}
               value={formData.dueDate}
               onChange={handleChange}
             />
           </div>
 
-          <div className="form-group full" />
+          <div className="form-group full">
+            {selectedReader && (
+              <div className="success-message">
+                {selectedReader.name} đang mượn {selectedReaderActiveLoans}/
+                {MAX_ACTIVE_LOANS_PER_READER} sách.
+              </div>
+            )}
+            {selectedReaderReachedLimit && (
+              <div className="error-message">Độc giả này đã đạt giới hạn mượn sách.</div>
+            )}
+            {selectedReaderAlreadyBorrowingBook && (
+              <div className="error-message">Độc giả đang mượn sách đã chọn.</div>
+            )}
+          </div>
 
           <div className="form-actions">
-            <button className="primary-button" type="submit" disabled={submitting}>
+            <button className="primary-button" type="submit" disabled={!canSubmitBorrow}>
               {submitting ? "Đang xử lý..." : "Tạo phiếu mượn"}
             </button>
           </div>
@@ -182,7 +299,37 @@ function Borrow() {
       </div>
 
       <div className="table-card" style={{ marginTop: 24 }}>
-        <h3>Danh sách phiếu mượn</h3>
+        <div className="table-card-header row-between">
+          <h3>Danh sách phiếu mượn</h3>
+          <div className="loan-summary">
+            <span>Đang mượn: {loanSummary.borrowed}</span>
+            <span>Quá hạn: {loanSummary.overdue}</span>
+            <span>Đã trả: {loanSummary.returned}</span>
+          </div>
+        </div>
+
+        <div className="filters-row">
+          <div className="search-bar">
+            <label>Tìm kiếm</label>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Tìm theo mã phiếu, độc giả hoặc sách"
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Trạng thái</label>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="">Tất cả</option>
+              <option value="borrowed">Đang mượn</option>
+              <option value="overdue">Quá hạn</option>
+              <option value="returned">Đã trả</option>
+            </select>
+          </div>
+        </div>
+
         {loading ? (
           <div className="empty-state">Đang tải dữ liệu mượn...</div>
         ) : loans.length === 0 ? (
@@ -201,7 +348,7 @@ function Borrow() {
               </tr>
             </thead>
             <tbody>
-              {loans.map((loan) => (
+              {filteredLoans.map((loan) => (
                 <tr key={loan.id}>
                   <td>#{loan.id}</td>
                   <td>{loan.readerName}</td>
@@ -218,26 +365,41 @@ function Borrow() {
                           : "badge"
                       }
                     >
-                      {loan.status === "borrowed"
-                        ? "Đang mượn"
-                        : loan.status === "overdue"
-                        ? "Quá hạn"
-                        : "Đã trả"}
+                      {getStatusLabel(loan.status)}
                     </span>
                   </td>
                   <td>
-                    {loan.status === "borrowed" && (
-                      <button
-                        className="small-button"
-                        onClick={() => handleReturn(loan.id)}
-                        disabled={submitting}
-                      >
-                        Trả sách
-                      </button>
+                    {(loan.status === "borrowed" || loan.status === "overdue") && (
+                      <div className="action-buttons">
+                        <button
+                          className="small-button"
+                          type="button"
+                          onClick={() => handleExtend(loan)}
+                          disabled={submitting}
+                        >
+                          Gia hạn
+                        </button>
+                        <button
+                          className="small-button"
+                          type="button"
+                          onClick={() => handleReturn(loan.id)}
+                          disabled={submitting}
+                        >
+                          Trả sách
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
               ))}
+
+              {filteredLoans.length === 0 && (
+                <tr>
+                  <td colSpan="7" className="empty-table">
+                    Không tìm thấy phiếu mượn phù hợp.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}

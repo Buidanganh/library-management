@@ -1,10 +1,10 @@
 import {
-  LayoutDashboard,
+  AlertTriangle,
   BookOpen,
   BookPlus,
-  UserRound,
+  LayoutDashboard,
   Repeat,
-  AlertTriangle,
+  UserRound,
 } from "lucide-react";
 
 const menuItems = [
@@ -47,9 +47,7 @@ function Sidebar({ currentPage, onChangePage, user }) {
         })}
       </nav>
 
-      <div className="sidebar-footer">
-        Quản lý thư viện thân thiện và trực quan.
-      </div>
+      <div className="sidebar-footer">Quản lý thư viện thân thiện và trực quan.</div>
     </aside>
   );
 }

@@ -11,7 +11,9 @@ function Header({ title, subtitle, user, onLogout }) {
       <div className="user-panel">
         <div>
           <span>Xin chào, {user.fullName}</span>
-          <p>{user.email} · {user.role === "admin" ? "Admin" : "User"}</p>
+          <p>
+            {user.email} · {user.role === "admin" ? "Admin" : "User"}
+          </p>
         </div>
         <div className="avatar">{user.fullName?.charAt(0) ?? "A"}</div>
         <button className="logout-button" type="button" onClick={onLogout}>

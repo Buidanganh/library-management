@@ -3,6 +3,8 @@ const crypto = require("crypto");
 const { readData, writeData } = require("./database");
 
 const PORT = Number(process.env.PORT || 4000);
+const MAX_ACTIVE_LOANS_PER_READER = 5;
+const DAILY_OVERDUE_FINE = 5000;
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -86,6 +88,19 @@ function normalizeDate(date = new Date()) {
   return new Date(date).toISOString().split("T")[0];
 }
 
+function isValidDateString(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    return false;
+  }
+
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && normalizeDate(date) === value;
+}
+
+function isBeforeToday(value) {
+  return new Date(value) < new Date(normalizeDate());
+}
+
 function activeLoanCount(loans, bookId) {
   return loans.filter((loan) => loan.bookId === bookId && loan.status !== "returned").length;
 }
@@ -114,16 +129,33 @@ function getLoanStatus(loan) {
   return new Date(loan.dueDate) < new Date(normalizeDate()) ? "overdue" : "borrowed";
 }
 
+function getLateDays(loan) {
+  const status = getLoanStatus(loan);
+  if (status !== "overdue") {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.ceil((new Date(normalizeDate()) - new Date(loan.dueDate)) / (1000 * 60 * 60 * 24))
+  );
+}
+
 function decorateLoans(data) {
   return data.loans.map((loan) => {
     const reader = data.readers.find((item) => item.id === loan.readerId);
     const book = data.books.find((item) => item.id === loan.bookId);
+    const lateDays = getLateDays(loan);
 
     return {
       ...loan,
       status: getLoanStatus(loan),
       readerName: reader?.name || "Khong ro doc gia",
+      readerEmail: reader?.email || "",
+      readerPhone: reader?.phone || "",
       bookTitle: book?.title || "Khong ro sach",
+      lateDays,
+      fineAmount: lateDays * DAILY_OVERDUE_FINE,
     };
   });
 }
@@ -133,14 +165,20 @@ function validateBook(input) {
   const author = String(input.author || "").trim();
   const category = String(input.category || "").trim();
   const quantity = Number(input.quantity);
+  const imageUrl = String(input.imageUrl || input.coverImage || "").trim();
 
   if (!title || !author || !category || !Number.isFinite(quantity) || quantity < 0) {
     return { error: "Vui long nhap ten sach, tac gia, the loai va so luong hop le." };
   }
 
+  if (imageUrl && !/^https?:\/\/.+/i.test(imageUrl)) {
+    return { error: "Anh sach phai la duong dan http hoac https hop le." };
+  }
+
   return {
     book: {
       title,
+      imageUrl,
       author,
       category,
       publisher: String(input.publisher || "").trim(),
@@ -148,6 +186,24 @@ function validateBook(input) {
       quantity,
       shelfLocation: String(input.shelfLocation || "").trim(),
       description: String(input.description || "").trim(),
+    },
+  };
+}
+
+function validateReader(input) {
+  const name = String(input.name || "").trim();
+  const email = String(input.email || "").trim().toLowerCase();
+  const phone = String(input.phone || "").trim();
+
+  if (!name || !email || !email.includes("@")) {
+    return { error: "Vui long nhap ho ten va email doc gia hop le." };
+  }
+
+  return {
+    reader: {
+      name,
+      email,
+      phone,
     },
   };
 }
@@ -321,9 +377,150 @@ async function handleBooks(req, res, pathname) {
   sendJson(res, 404, { error: "Khong tim thay API sach." });
 }
 
+async function handleReaders(req, res, pathname) {
+  const data = await readData();
+  const loansMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)\/loans$/);
+  const idMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)$/);
+
+  if (req.method === "GET" && pathname === "/api/readers") {
+    sendJson(res, 200, decorateReaders(data));
+    return;
+  }
+
+  if (req.method === "GET" && loansMatch) {
+    const readerId = Number(loansMatch[1]);
+    if (!Number.isInteger(readerId) || readerId <= 0) {
+      sendJson(res, 400, { error: "Ma doc gia khong hop le." });
+      return;
+    }
+
+    const reader = data.readers.find((item) => item.id === readerId);
+    if (!reader) {
+      sendJson(res, 404, { error: "Khong tim thay doc gia." });
+      return;
+    }
+
+    sendJson(
+      res,
+      200,
+      decorateLoans(data)
+        .filter((loan) => loan.readerId === readerId)
+        .sort((first, second) => second.id - first.id)
+    );
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/readers") {
+    if (!requireAdmin(req, res)) return;
+
+    const body = await parseBody(req);
+    const { reader, error } = validateReader(body);
+
+    if (error) {
+      sendJson(res, 400, { error });
+      return;
+    }
+
+    const emailExists = data.readers.some((item) => item.email.toLowerCase() === reader.email);
+    if (emailExists) {
+      sendJson(res, 409, { error: "Email doc gia da ton tai." });
+      return;
+    }
+
+    const createdReader = { id: nextId(data.readers), ...reader };
+    data.readers.push(createdReader);
+    await writeData(data);
+    sendJson(res, 201, { ...createdReader, booksBorrowed: 0 });
+    return;
+  }
+
+  if (req.method === "PUT" && idMatch) {
+    if (!requireAdmin(req, res)) return;
+
+    const readerId = Number(idMatch[1]);
+    if (!Number.isInteger(readerId) || readerId <= 0) {
+      sendJson(res, 400, { error: "Ma doc gia khong hop le." });
+      return;
+    }
+
+    const existingIndex = data.readers.findIndex((reader) => reader.id === readerId);
+
+    if (existingIndex === -1) {
+      sendJson(res, 404, { error: "Khong tim thay doc gia." });
+      return;
+    }
+
+    const body = await parseBody(req);
+    const { reader, error } = validateReader(body);
+
+    if (error) {
+      sendJson(res, 400, { error });
+      return;
+    }
+
+    const emailExists = data.readers.some(
+      (item) => item.id !== readerId && item.email.toLowerCase() === reader.email
+    );
+    if (emailExists) {
+      sendJson(res, 409, { error: "Email doc gia da ton tai." });
+      return;
+    }
+
+    const currentReader = data.readers[existingIndex];
+    data.readers[existingIndex] = { ...currentReader, ...reader, id: readerId };
+
+    if (currentReader.userId) {
+      const user = data.users.find((item) => item.id === currentReader.userId);
+      if (user) {
+        user.fullName = reader.name;
+        user.email = reader.email;
+      }
+    }
+
+    await writeData(data);
+    sendJson(res, 200, decorateReaders(data).find((item) => item.id === readerId));
+    return;
+  }
+
+  if (req.method === "DELETE" && idMatch) {
+    if (!requireAdmin(req, res)) return;
+
+    const readerId = Number(idMatch[1]);
+    if (!Number.isInteger(readerId) || readerId <= 0) {
+      sendJson(res, 400, { error: "Ma doc gia khong hop le." });
+      return;
+    }
+
+    const hasActiveLoan = data.loans.some(
+      (loan) => loan.readerId === readerId && loan.status !== "returned"
+    );
+
+    if (hasActiveLoan) {
+      sendJson(res, 400, { error: "Khong the xoa doc gia dang muon sach." });
+      return;
+    }
+
+    const beforeCount = data.readers.length;
+    data.readers = data.readers.filter((reader) => reader.id !== readerId);
+
+    if (data.readers.length === beforeCount) {
+      sendJson(res, 404, { error: "Khong tim thay doc gia." });
+      return;
+    }
+
+    data.loans = data.loans.filter((loan) => loan.readerId !== readerId);
+    await writeData(data);
+    sendNoContent(res);
+    return;
+  }
+
+  sendJson(res, 404, { error: `Khong tim thay API doc gia: ${req.method} ${pathname}` });
+}
+
 async function handleLoans(req, res, pathname) {
   const data = await readData();
   const returnMatch = pathname.match(/^\/api\/loans\/(\d+)\/return$/);
+  const extendMatch = pathname.match(/^\/api\/loans\/(\d+)\/extend$/);
 
   if (req.method === "GET" && pathname === "/api/loans") {
     sendJson(res, 200, decorateLoans(data));
@@ -340,6 +537,29 @@ async function handleLoans(req, res, pathname) {
 
     if (!reader || !book || !dueDate) {
       sendJson(res, 400, { error: "Doc gia, sach hoac han tra khong hop le." });
+      return;
+    }
+
+    if (!isValidDateString(dueDate) || isBeforeToday(dueDate)) {
+      sendJson(res, 400, { error: "Han tra phai la ngay hop le va khong duoc trong qua khu." });
+      return;
+    }
+
+    const activeReaderLoans = data.loans.filter(
+      (loan) => loan.readerId === readerId && loan.status !== "returned"
+    ).length;
+    if (activeReaderLoans >= MAX_ACTIVE_LOANS_PER_READER) {
+      sendJson(res, 400, {
+        error: `Doc gia da muon toi da ${MAX_ACTIVE_LOANS_PER_READER} sach.`,
+      });
+      return;
+    }
+
+    const duplicateActiveLoan = data.loans.some(
+      (loan) => loan.readerId === readerId && loan.bookId === bookId && loan.status !== "returned"
+    );
+    if (duplicateActiveLoan) {
+      sendJson(res, 400, { error: "Doc gia dang muon sach nay, khong the tao phieu trung." });
       return;
     }
 
@@ -365,6 +585,39 @@ async function handleLoans(req, res, pathname) {
     return;
   }
 
+  if (req.method === "PATCH" && extendMatch) {
+    const loanId = Number(extendMatch[1]);
+    const loan = data.loans.find((item) => item.id === loanId);
+
+    if (!loan) {
+      sendJson(res, 404, { error: "Khong tim thay phieu muon." });
+      return;
+    }
+
+    if (loan.status === "returned") {
+      sendJson(res, 400, { error: "Khong the gia han phieu muon da tra." });
+      return;
+    }
+
+    const body = await parseBody(req);
+    const dueDate = String(body.dueDate || "").trim();
+
+    if (!isValidDateString(dueDate) || isBeforeToday(dueDate)) {
+      sendJson(res, 400, { error: "Han tra moi phai la ngay hop le va khong duoc trong qua khu." });
+      return;
+    }
+
+    if (new Date(dueDate) <= new Date(loan.dueDate)) {
+      sendJson(res, 400, { error: "Han tra moi phai lon hon han tra hien tai." });
+      return;
+    }
+
+    loan.dueDate = dueDate;
+    await writeData(data);
+    sendJson(res, 200, decorateLoans(data).find((item) => item.id === loanId));
+    return;
+  }
+
   if (req.method === "PATCH" && returnMatch) {
     const loanId = Number(returnMatch[1]);
     const loan = data.loans.find((item) => item.id === loanId);
@@ -387,12 +640,50 @@ async function handleLoans(req, res, pathname) {
 async function handleStats(req, res) {
   const data = await readData();
   const loans = decorateLoans(data);
+  const books = decorateBooks(data);
+  const borrowedLoans = loans.filter((loan) => loan.status === "borrowed");
+  const overdueLoans = loans.filter((loan) => loan.status === "overdue");
+  const today = new Date(normalizeDate());
+  const dueSoonLimit = new Date(today);
+  dueSoonLimit.setDate(dueSoonLimit.getDate() + 3);
+  const dueSoonLoans = borrowedLoans
+    .filter((loan) => {
+      const dueDate = new Date(loan.dueDate);
+      return dueDate >= today && dueDate <= dueSoonLimit;
+    })
+    .sort((first, second) => new Date(first.dueDate) - new Date(second.dueDate));
+  const loanCountsByBook = data.loans.reduce((counts, loan) => {
+    counts[loan.bookId] = (counts[loan.bookId] || 0) + 1;
+    return counts;
+  }, {});
 
   sendJson(res, 200, {
     totalBooks: data.books.reduce((total, book) => total + Number(book.quantity || 0), 0),
     readers: data.readers.length,
-    borrowed: loans.filter((loan) => loan.status === "borrowed").length,
-    overdue: loans.filter((loan) => loan.status === "overdue").length,
+    borrowed: borrowedLoans.length,
+    overdue: overdueLoans.length,
+    dueSoon: dueSoonLoans.length,
+    totalFines: overdueLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
+    availableBooks: books.reduce((total, book) => total + Number(book.availableQuantity || 0), 0),
+    lowStockBooks: books
+      .filter((book) => Number(book.availableQuantity || 0) <= 2)
+      .sort((first, second) => Number(first.availableQuantity || 0) - Number(second.availableQuantity || 0))
+      .slice(0, 5),
+    popularBooks: books
+      .map((book) => ({
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        borrowedCount: loanCountsByBook[book.id] || 0,
+      }))
+      .filter((book) => book.borrowedCount > 0)
+      .sort((first, second) => second.borrowedCount - first.borrowedCount)
+      .slice(0, 5),
+    recentLoans: loans
+      .slice()
+      .sort((first, second) => second.id - first.id)
+      .slice(0, 5),
+    dueSoonLoans: dueSoonLoans.slice(0, 5),
   });
 }
 
@@ -426,8 +717,8 @@ async function handleRequest(req, res) {
       return;
     }
 
-    if (req.method === "GET" && pathname === "/api/readers") {
-      sendJson(res, 200, decorateReaders(await readData()));
+    if (pathname.startsWith("/api/readers") || pathname.startsWith("/readers")) {
+      await handleReaders(req, res, pathname);
       return;
     }
 

@@ -75,9 +75,7 @@ function Login({ onLogin, onNavigateRegister }) {
           Chưa có tài khoản? Đăng ký user
         </button>
 
-        <div className="demo-account">
-          Tài khoản admin: admin@gmail.com / 123456
-        </div>
+        <div className="demo-account">Tài khoản admin: admin@gmail.com / 123456</div>
       </form>
     </div>
   );

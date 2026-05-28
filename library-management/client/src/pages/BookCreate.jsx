@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
-import { getBooks } from "../services/api";
 import BookTable from "../components/BookTable";
+import { getBooks } from "../services/api";
+
+const emptyForm = {
+  title: "",
+  imageUrl: "",
+  author: "",
+  category: "",
+  publisher: "",
+  year: "",
+  quantity: "",
+  shelfLocation: "",
+  description: "",
+};
 
 function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
-  const [formData, setFormData] = useState({
-    title: "",
-    author: "",
-    category: "",
-    publisher: "",
-    year: "",
-    quantity: "",
-    shelfLocation: "",
-    description: "",
-  });
+  const [formData, setFormData] = useState(emptyForm);
   const [editingBookId, setEditingBookId] = useState(null);
   const [books, setBooks] = useState([]);
   const [loadingBooks, setLoadingBooks] = useState(true);
@@ -27,16 +30,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   };
 
   const resetForm = () => {
-    setFormData({
-      title: "",
-      author: "",
-      category: "",
-      publisher: "",
-      year: "",
-      quantity: "",
-      shelfLocation: "",
-      description: "",
-    });
+    setFormData(emptyForm);
     setEditingBookId(null);
   };
 
@@ -55,44 +49,32 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   };
 
   useEffect(() => {
-    const initialize = async () => {
-      await loadBooks();
-    };
-
-    initialize();
+    loadBooks();
   }, []);
 
   useEffect(() => {
-    const initialize = () => {
-      if (editingBook) {
-        setEditingBookId(editingBook.id);
-        setFormData({
-          title: editingBook.title,
-          author: editingBook.author,
-          category: editingBook.category,
-          publisher: editingBook.publisher || "",
-          year: editingBook.year || "",
-          quantity: editingBook.quantity || "",
-          shelfLocation: editingBook.shelfLocation || "",
-          description: editingBook.description || "",
-        });
-      } else {
-        resetForm();
-      }
-    };
-
-    initialize();
+    if (editingBook) {
+      setEditingBookId(editingBook.id);
+      setFormData({
+        title: editingBook.title || "",
+        imageUrl: editingBook.imageUrl || "",
+        author: editingBook.author || "",
+        category: editingBook.category || "",
+        publisher: editingBook.publisher || "",
+        year: editingBook.year || "",
+        quantity: editingBook.quantity || "",
+        shelfLocation: editingBook.shelfLocation || "",
+        description: editingBook.description || "",
+      });
+    } else {
+      resetForm();
+    }
   }, [editingBook]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (
-      !formData.title ||
-      !formData.author ||
-      !formData.category ||
-      !formData.quantity
-    ) {
+    if (!formData.title || !formData.author || !formData.category || !formData.quantity) {
       alert("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
@@ -101,6 +83,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
       await onSaveBook({
         id: editingBookId,
         title: formData.title,
+        imageUrl: formData.imageUrl,
         author: formData.author,
         category: formData.category,
         publisher: formData.publisher,
@@ -120,9 +103,10 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   const handleEditBook = (book) => {
     setEditingBookId(book.id);
     setFormData({
-      title: book.title,
-      author: book.author,
-      category: book.category,
+      title: book.title || "",
+      imageUrl: book.imageUrl || "",
+      author: book.author || "",
+      category: book.category || "",
       publisher: book.publisher || "",
       year: book.year || "",
       quantity: book.quantity || "",
@@ -143,7 +127,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
       <div className="page-title row-between">
         <div>
           <h2>{editingBookId ? "Chỉnh sửa sách" : "Thêm sách mới"}</h2>
-          <p>Nhập thông tin chi tiết để thêm hoặc cập nhật sách trong thư viện.</p>
+          <p>Nhập tên sách, ảnh bìa và thông tin chi tiết để quản lý kho sách.</p>
         </div>
 
         <button className="secondary-button" type="button" onClick={onCancel}>
@@ -152,93 +136,115 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
       </div>
 
       <form className="form-card" onSubmit={handleSubmit}>
-        <div className="form-grid">
-          <div className="form-group">
-            <label>Tên sách</label>
-            <input
-              type="text"
-              name="title"
-              placeholder="Ví dụ: Clean Code"
-              value={formData.title}
-              onChange={handleChange}
-            />
+        <div className="book-form-layout">
+          <div className="book-cover-preview">
+            {formData.imageUrl ? (
+              <img src={formData.imageUrl} alt={`Ảnh bìa ${formData.title || "sách"}`} />
+            ) : (
+              <div className="book-cover-preview-empty">Ảnh sách</div>
+            )}
           </div>
 
-          <div className="form-group">
-            <label>Tác giả</label>
-            <input
-              type="text"
-              name="author"
-              placeholder="Ví dụ: Robert C. Martin"
-              value={formData.author}
-              onChange={handleChange}
-            />
-          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Tên sách</label>
+              <input
+                type="text"
+                name="title"
+                placeholder="Ví dụ: Clean Code"
+                value={formData.title}
+                onChange={handleChange}
+              />
+            </div>
 
-          <div className="form-group">
-            <label>Thể loại</label>
-            <input
-              type="text"
-              name="category"
-              placeholder="Ví dụ: Lập trình"
-              value={formData.category}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label>Ảnh sách</label>
+              <input
+                type="url"
+                name="imageUrl"
+                placeholder="https://example.com/book-cover.jpg"
+                value={formData.imageUrl}
+                onChange={handleChange}
+              />
+            </div>
 
-          <div className="form-group">
-            <label>Nhà xuất bản</label>
-            <input
-              type="text"
-              name="publisher"
-              placeholder="Ví dụ: Prentice Hall"
-              value={formData.publisher}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label>Tác giả</label>
+              <input
+                type="text"
+                name="author"
+                placeholder="Ví dụ: Robert C. Martin"
+                value={formData.author}
+                onChange={handleChange}
+              />
+            </div>
 
-          <div className="form-group">
-            <label>Năm xuất bản</label>
-            <input
-              type="number"
-              name="year"
-              placeholder="2008"
-              value={formData.year}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label>Thể loại</label>
+              <input
+                type="text"
+                name="category"
+                placeholder="Ví dụ: Lập trình"
+                value={formData.category}
+                onChange={handleChange}
+              />
+            </div>
 
-          <div className="form-group">
-            <label>Số lượng</label>
-            <input
-              type="number"
-              name="quantity"
-              placeholder="10"
-              value={formData.quantity}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label>Nhà xuất bản</label>
+              <input
+                type="text"
+                name="publisher"
+                placeholder="Ví dụ: Prentice Hall"
+                value={formData.publisher}
+                onChange={handleChange}
+              />
+            </div>
 
-          <div className="form-group full">
-            <label>Vị trí kệ sách</label>
-            <input
-              type="text"
-              name="shelfLocation"
-              placeholder="Ví dụ: Kệ A1"
-              value={formData.shelfLocation}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label>Năm xuất bản</label>
+              <input
+                type="number"
+                name="year"
+                placeholder="2008"
+                value={formData.year}
+                onChange={handleChange}
+              />
+            </div>
 
-          <div className="form-group full">
-            <label>Mô tả</label>
-            <textarea
-              rows="4"
-              name="description"
-              placeholder="Nhập mô tả ngắn về sách"
-              value={formData.description}
-              onChange={handleChange}
-            />
+            <div className="form-group">
+              <label>Số lượng</label>
+              <input
+                type="number"
+                name="quantity"
+                placeholder="10"
+                min="0"
+                value={formData.quantity}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Vị trí kệ sách</label>
+              <input
+                type="text"
+                name="shelfLocation"
+                placeholder="Ví dụ: Kệ A1"
+                value={formData.shelfLocation}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group full">
+              <label>Mô tả</label>
+              <textarea
+                rows="4"
+                name="description"
+                placeholder="Nhập mô tả ngắn về sách"
+                value={formData.description}
+                onChange={handleChange}
+              />
+            </div>
           </div>
         </div>
 

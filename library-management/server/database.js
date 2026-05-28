@@ -19,6 +19,7 @@ const defaultData = {
     {
       id: 1,
       title: "Clean Code",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg",
       author: "Robert C. Martin",
       category: "Lap trinh",
       publisher: "Prentice Hall",
@@ -30,6 +31,7 @@ const defaultData = {
     {
       id: 2,
       title: "Design Patterns",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780201633610-L.jpg",
       author: "Erich Gamma",
       category: "Ky thuat phan mem",
       publisher: "Addison-Wesley",
@@ -41,6 +43,7 @@ const defaultData = {
     {
       id: 3,
       title: "You Don't Know JS",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9781491904244-L.jpg",
       author: "Kyle Simpson",
       category: "JavaScript",
       publisher: "O'Reilly",
@@ -48,6 +51,126 @@ const defaultData = {
       quantity: 8,
       shelfLocation: "Ke C1",
       description: "Giai thich sau ve ngon ngu JavaScript."
+    },
+    {
+      id: 4,
+      title: "The Pragmatic Programmer",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780201616224-L.jpg",
+      author: "Andrew Hunt, David Thomas",
+      category: "Lap trinh",
+      publisher: "Addison-Wesley",
+      year: "1999",
+      quantity: 7,
+      shelfLocation: "Ke A2",
+      description: "Huong dan tu duy thuc chien cho lap trinh vien."
+    },
+    {
+      id: 5,
+      title: "Refactoring",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780134757599-L.jpg",
+      author: "Martin Fowler",
+      category: "Ky thuat phan mem",
+      publisher: "Addison-Wesley",
+      year: "2018",
+      quantity: 5,
+      shelfLocation: "Ke B1",
+      description: "Cac ky thuat cai thien cau truc ma nguon."
+    },
+    {
+      id: 6,
+      title: "Introduction to Algorithms",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780262033848-L.jpg",
+      author: "Thomas H. Cormen",
+      category: "Giai thuat",
+      publisher: "MIT Press",
+      year: "2009",
+      quantity: 4,
+      shelfLocation: "Ke D1",
+      description: "Giao trinh nen tang ve thuat toan va cau truc du lieu."
+    },
+    {
+      id: 7,
+      title: "Database System Concepts",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780073523323-L.jpg",
+      author: "Abraham Silberschatz",
+      category: "Co so du lieu",
+      publisher: "McGraw-Hill",
+      year: "2010",
+      quantity: 6,
+      shelfLocation: "Ke E1",
+      description: "Kien thuc nen tang ve he quan tri co so du lieu."
+    },
+    {
+      id: 8,
+      title: "Computer Networking: A Top-Down Approach",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780133594140-L.jpg",
+      author: "James F. Kurose, Keith W. Ross",
+      category: "Mang may tinh",
+      publisher: "Pearson",
+      year: "2016",
+      quantity: 5,
+      shelfLocation: "Ke F1",
+      description: "Nhap mon mang may tinh theo cach tiep can tu tren xuong."
+    },
+    {
+      id: 9,
+      title: "Operating System Concepts",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9781118063330-L.jpg",
+      author: "Abraham Silberschatz",
+      category: "He dieu hanh",
+      publisher: "Wiley",
+      year: "2012",
+      quantity: 4,
+      shelfLocation: "Ke F2",
+      description: "Tong quan ve tien trinh, bo nho, luu tru va bao mat he dieu hanh."
+    },
+    {
+      id: 10,
+      title: "Artificial Intelligence: A Modern Approach",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780134610993-L.jpg",
+      author: "Stuart Russell, Peter Norvig",
+      category: "Tri tue nhan tao",
+      publisher: "Pearson",
+      year: "2020",
+      quantity: 3,
+      shelfLocation: "Ke G1",
+      description: "Sach nen tang ve tri tue nhan tao hien dai."
+    },
+    {
+      id: 11,
+      title: "Deep Learning",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780262035613-L.jpg",
+      author: "Ian Goodfellow, Yoshua Bengio, Aaron Courville",
+      category: "Tri tue nhan tao",
+      publisher: "MIT Press",
+      year: "2016",
+      quantity: 4,
+      shelfLocation: "Ke G2",
+      description: "Tai lieu chuyen sau ve hoc sau va mang neural."
+    },
+    {
+      id: 12,
+      title: "Eloquent JavaScript",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9781593279509-L.jpg",
+      author: "Marijn Haverbeke",
+      category: "JavaScript",
+      publisher: "No Starch Press",
+      year: "2018",
+      quantity: 9,
+      shelfLocation: "Ke C2",
+      description: "Hoc JavaScript qua cac vi du va bai tap thuc hanh."
+    },
+    {
+      id: 13,
+      title: "Head First Design Patterns",
+      imageUrl: "https://covers.openlibrary.org/b/isbn/9780596007126-L.jpg",
+      author: "Eric Freeman, Elisabeth Robson",
+      category: "Ky thuat phan mem",
+      publisher: "O'Reilly",
+      year: "2004",
+      quantity: 6,
+      shelfLocation: "Ke B3",
+      description: "Giai thich design pattern bang cach truc quan va de tiep can."
     }
   ],
   readers: [

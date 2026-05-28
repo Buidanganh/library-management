@@ -71,6 +71,44 @@ export function getReaders() {
   return request("/api/readers");
 }
 
+export function getReaderLoans(readerId) {
+  if (!readerId) {
+    throw new Error("Không xác định được mã độc giả.");
+  }
+
+  return request(`/api/readers/${readerId}/loans`);
+}
+
+export function createReader(reader) {
+  return request("/api/readers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reader),
+  });
+}
+
+export function updateReader(readerId, reader) {
+  if (!readerId) {
+    throw new Error("Không xác định được mã độc giả.");
+  }
+
+  return request(`/api/readers/${readerId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reader),
+  });
+}
+
+export function deleteReader(readerId) {
+  if (!readerId) {
+    throw new Error("Không xác định được mã độc giả.");
+  }
+
+  return request(`/api/readers/${readerId}`, {
+    method: "DELETE",
+  });
+}
+
 export function getLoans() {
   return request("/api/loans");
 }
@@ -86,6 +124,18 @@ export function borrowBook(payload) {
 export function returnLoan(loanId) {
   return request(`/api/loans/${loanId}/return`, {
     method: "PATCH",
+  });
+}
+
+export function extendLoan(loanId, dueDate) {
+  if (!loanId) {
+    throw new Error("Không xác định được mã phiếu mượn.");
+  }
+
+  return request(`/api/loans/${loanId}/extend`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dueDate }),
   });
 }
 

@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node library-management/server/dev.js",
     "server": "node library-management/server/index.js",
-    "client": "npm --prefix library-management/client run dev"
+    "client": "npm --prefix library-management/client run dev",
+    "build": "npm --prefix library-management/client run build"
   },
   "dependencies": {
     "axios": "^1.16.1",

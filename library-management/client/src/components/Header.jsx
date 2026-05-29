@@ -1,24 +1,28 @@
 function Header({ title, subtitle, user, onLogout }) {
   return (
-    <header className="header">
-      <div className="header-left">
+    <header className="header bg-white shadow-sm py-3">
+      <div className="container d-flex align-items-center justify-content-between">
         <div>
-          <h1>{title}</h1>
-          <p>{subtitle}</p>
+          <h1 className="h4 mb-0">{title}</h1>
+          <p className="text-muted mb-0 small">{subtitle}</p>
         </div>
-      </div>
 
-      <div className="user-panel">
-        <div>
-          <span>Xin chào, {user.fullName}</span>
-          <p>
-            {user.email} · {user.role === "admin" ? "Admin" : "User"}
-          </p>
+        <div className="d-flex align-items-center gap-3">
+          <div className="text-end">
+            <div className="fw-semibold">Xin chào, {user.fullName}</div>
+            <div className="text-muted small">
+              {user.email} · {user.role === "admin" ? "Admin" : "User"}
+            </div>
+          </div>
+
+          <div className="avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style={{width:40,height:40}}>
+            {user.fullName?.charAt(0) ?? "A"}
+          </div>
+
+          <button className="btn btn-outline-secondary btn-sm" type="button" onClick={onLogout}>
+            Đăng xuất
+          </button>
         </div>
-        <div className="avatar">{user.fullName?.charAt(0) ?? "A"}</div>
-        <button className="logout-button" type="button" onClick={onLogout}>
-          Đăng xuất
-        </button>
       </div>
     </header>
   );

@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+.vite
+*.log
+package-lock.json
+library.db.json
+server/data.json
+server/library.db.json

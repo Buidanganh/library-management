@@ -18,6 +18,47 @@
   background: var(--bg);
 }
 
+/* sync Bootstrap primary color with app variable */
+:root {
+  --bs-primary: var(--primary);
+}
+
+/* Ensure sidebar fills viewport height and preserves gradient */
+.sidebar {
+  min-height: 100vh;
+}
+
+/* Prevent list-group items from breaking into vertical letters */
+.sidebar .list-group-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* On small screens make sidebar full width and horizontal */
+@media (max-width: 768px) {
+  .sidebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .sidebar .list-group {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .sidebar .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -54,6 +95,30 @@ select {
   display: grid;
   grid-template-columns: 272px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+/* Collapsed sidebar layout */
+.app-layout.sidebar-collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.sidebar.collapsed {
+  width: 72px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.sidebar.collapsed .brand h1,
+.sidebar.collapsed .brand p,
+.sidebar.collapsed .list-group-item span,
+.sidebar.collapsed .sidebar-footer {
+  display: none !important;
+}
+
+.sidebar.collapsed .brand-logo {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
 }
 
 .sidebar {
@@ -257,8 +322,9 @@ select {
 
 .page-content {
   padding: 30px 32px 42px;
-  max-width: 1320px;
+  max-width: 1200px;
   width: 100%;
+  margin: 0 auto; /* center page content inside main */
 }
 
 .page-title {
@@ -373,15 +439,18 @@ select {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  /* allow Bootstrap's responsive wrapper to handle overflow */
+  table-layout: auto;
+  max-width: 100%;
 }
 
 th,
 td {
-  padding: 15px 18px;
+  padding: 12px 12px;
   border-bottom: 1px solid #eef2f7;
   text-align: left;
   vertical-align: middle;
+  word-break: break-word;
 }
 
 th {
@@ -391,7 +460,21 @@ th {
   font-size: 13px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Reduce table padding on small screens to avoid overflow */
+@media (max-width: 768px) {
+  th,
+  td {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .table-card table {
+    font-size: 14px;
+  }
 }
 
 tbody tr:hover {

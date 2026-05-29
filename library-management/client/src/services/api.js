@@ -29,6 +29,8 @@ function request(path, options = {}) {
   const headers = {
     ...(options.headers || {}),
     ...(user?.role ? { "x-user-role": user.role } : {}),
+    ...(user?.id ? { "x-user-id": String(user.id) } : {}),
+    ...(user?.email ? { "x-user-email": user.email } : {}),
   };
 
   return fetch(`${API_URL}${path}`, {
@@ -62,6 +64,14 @@ export function createBook(book) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(book),
+  });
+}
+
+export function createBooksBulk(books) {
+  return request("/api/books/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(books),
   });
 }
 

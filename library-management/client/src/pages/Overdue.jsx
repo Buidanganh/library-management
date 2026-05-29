@@ -8,6 +8,40 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportOverdueAsJson(items) {
+  downloadFile(JSON.stringify(items, null, 2), "overdue.json", "application/json");
+}
+
+function exportOverdueAsCsv(items) {
+  const headers = ["id", "readerName", "readerEmail", "readerPhone", "bookTitle", "dueDate", "lateDays", "fineAmount"];
+  const rows = items.map((item) => [
+    item.id,
+    item.readerName,
+    item.readerEmail,
+    item.readerPhone,
+    item.bookTitle,
+    item.dueDate,
+    item.lateDays,
+    item.fineAmount,
+  ]);
+  const csv = [headers.join(","),
+    ...rows.map((row) => row.map((value) => `"${String(value || "").replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+  downloadFile(csv, "overdue.csv", "text/csv;charset=utf-8;");
+}
+
 function Overdue() {
   const [overdueItems, setOverdueItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,9 +87,19 @@ function Overdue() {
 
   return (
     <div>
-      <div className="page-title">
-        <h2>Sách quá hạn</h2>
-        <p>Theo dõi phiếu mượn quá hạn, thông tin liên hệ và tiền phạt dự kiến.</p>
+      <div className="page-title row-between">
+        <div>
+          <h2>Sách quá hạn</h2>
+          <p>Theo dõi phiếu mượn quá hạn, thông tin liên hệ và tiền phạt dự kiến.</p>
+        </div>
+        <div className="button-group">
+          <button className="secondary-button" type="button" onClick={() => exportOverdueAsJson(overdueItems)}>
+            Xuất JSON
+          </button>
+          <button className="secondary-button" type="button" onClick={() => exportOverdueAsCsv(overdueItems)}>
+            Xuất CSV
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -64,7 +108,8 @@ function Overdue() {
         <div className="empty-state">Đang tải dữ liệu quá hạn...</div>
       ) : overdueItems.length > 0 ? (
         <div className="table-card">
-          <table>
+          <div className="table-responsive">
+            <table className="table table-sm">
             <thead>
               <tr>
                 <th>Mã</th>
@@ -105,7 +150,8 @@ function Overdue() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       ) : (
         <div className="empty-state">Chưa có dữ liệu sách quá hạn.</div>

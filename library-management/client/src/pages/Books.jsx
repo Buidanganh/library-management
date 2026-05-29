@@ -53,6 +53,44 @@ function sortBooks(books, sortMode) {
   return sorted.sort((first, second) => first.title.localeCompare(second.title));
 }
 
+function quoteCsvValue(value) {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function createBooksCsv(books) {
+  const headers = [
+    "title",
+    "author",
+    "category",
+    "publisher",
+    "year",
+    "quantity",
+    "shelfLocation",
+    "description",
+    "imageUrl",
+  ];
+  const rows = books.map((book) =>
+    headers.map((key) => quoteCsvValue(book[key])).join(",")
+  );
+  return [headers.join(","), ...rows].join("\n");
+}
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 function BookCover({ book }) {
   const [failed, setFailed] = useState(false);
   const hasImage = hasBookImage(book) && !failed;
@@ -75,7 +113,14 @@ function BookCover({ book }) {
   );
 }
 
-function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false }) {
+function Books({
+  onSaveBook,
+  onDeleteBook,
+  onNavigateToCreate,
+  onBorrowBook,
+  canManage = false,
+  canBorrow = false,
+}) {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,6 +131,7 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
   const [sortMode, setSortMode] = useState("title-asc");
   const [showForm, setShowForm] = useState(false);
   const [editingBookId, setEditingBookId] = useState(null);
+  const [borrowingBookId, setBorrowingBookId] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     imageUrl: "",
@@ -236,6 +282,29 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
     await loadBooks();
   };
 
+  const handleBorrowBook = async (book) => {
+    if (!canBorrow || !onBorrowBook) return;
+
+    setBorrowingBookId(book.id);
+    try {
+      await onBorrowBook(book);
+      await loadBooks();
+    } catch (err) {
+      alert(err.message || "Không thể mượn sách.");
+    } finally {
+      setBorrowingBookId(null);
+    }
+  };
+
+  const downloadFilteredBooksJson = () => {
+    downloadFile(JSON.stringify(filteredBooks, null, 2), "books-export.json", "application/json");
+  };
+
+  const downloadFilteredBooksCsv = () => {
+    const csv = createBooksCsv(filteredBooks);
+    downloadFile(csv, "books-export.csv", "text/csv;charset=utf-8;");
+  };
+
   return (
     <div>
       <div className="page-title row-between">
@@ -258,16 +327,26 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
         <>
           <div className="table-card" style={{ marginBottom: 24 }}>
             <div className="table-card-header row-between">
-              <h3>Tồn kho sách</h3>
-              <div className="loan-summary">
-                <span>Tổng đầu sách: {bookSummary.total}</span>
-                <span>Còn tốt: {bookSummary.available}</span>
-                <span>Sắp hết: {bookSummary.low}</span>
-                <span>Hết sách: {bookSummary.out}</span>
-                <span>Có ảnh: {bookSummary.withImage}</span>
-                <span>Thiếu ảnh: {bookSummary.missingImage}</span>
-                <span>Đang hiển thị: {filteredBooks.length}</span>
+              <div>
+                <h3>Tồn kho sách</h3>
               </div>
+              <div className="loan-summary">
+                <button className="secondary-button" type="button" onClick={downloadFilteredBooksJson}>
+                  Xuất JSON
+                </button>
+                <button className="secondary-button" type="button" onClick={downloadFilteredBooksCsv} style={{ marginLeft: 8 }}>
+                  Xuất CSV
+                </button>
+                  <div className="summary-values">
+                    <span>Tổng đầu sách: {bookSummary.total}</span>
+                    <span>Còn tốt: {bookSummary.available}</span>
+                    <span>Sắp hết: {bookSummary.low}</span>
+                    <span>Hết sách: {bookSummary.out}</span>
+                    <span>Có ảnh: {bookSummary.withImage}</span>
+                    <span>Thiếu ảnh: {bookSummary.missingImage}</span>
+                    <span>Đang hiển thị: {filteredBooks.length}</span>
+                  </div>
+                </div>
             </div>
 
             <div className="filters-row">
@@ -412,7 +491,8 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
           )}
 
           <div className="table-card">
-            <table>
+            <div className="table-responsive">
+              <table className="table table-sm">
               <thead>
                 <tr>
                   <th>Mã</th>
@@ -422,7 +502,7 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
                   <th>Số lượng</th>
                   <th>Còn lại</th>
                   <th>Trạng thái</th>
-                  {canManage && <th>Hành động</th>}
+                  {(canManage || canBorrow) && <th>Hành động</th>}
                 </tr>
               </thead>
 
@@ -459,19 +539,36 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
                           {getBookStatusLabel(book)}
                         </span>
                       </td>
-                      {canManage && (
+                      {(canManage || canBorrow) && (
                         <td>
                           <div className="action-buttons">
-                            <button className="small-button" onClick={() => handleEditBook(book)}>
-                              Sửa
-                            </button>
+                            {canBorrow && (
+                              <button
+                                className="small-button"
+                                type="button"
+                                onClick={() => handleBorrowBook(book)}
+                                disabled={
+                                  borrowingBookId === book.id || getAvailableQuantity(book) <= 0
+                                }
+                              >
+                                {borrowingBookId === book.id ? "Đang mượn..." : "Mượn sách"}
+                              </button>
+                            )}
 
-                            <button
-                              className="small-button danger-button"
-                              onClick={() => handleDeleteBook(book.id)}
-                            >
-                              Xóa
-                            </button>
+                            {canManage && (
+                              <>
+                                <button className="small-button" onClick={() => handleEditBook(book)}>
+                                  Sửa
+                                </button>
+
+                                <button
+                                  className="small-button danger-button"
+                                  onClick={() => handleDeleteBook(book.id)}
+                                >
+                                  Xóa
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       )}
@@ -481,14 +578,15 @@ function Books({ onSaveBook, onDeleteBook, onNavigateToCreate, canManage = false
 
                 {filteredBooks.length === 0 && (
                   <tr>
-                    <td colSpan={canManage ? 8 : 7} className="empty-table">
+                    <td colSpan={canManage || canBorrow ? 8 : 7} className="empty-table">
                       Không tìm thấy sách phù hợp.
                     </td>
                   </tr>
                 )}
               </tbody>
-            </table>
-          </div>
+                </table>
+              </div>
+            </div>
         </>
       )}
     </div>

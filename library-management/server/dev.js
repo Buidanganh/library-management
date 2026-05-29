@@ -57,7 +57,11 @@ async function main() {
     env: { ...process.env, PORT: String(apiPort) },
   });
 
-  startProcess(process.execPath, [viteBin], {
+  const vitePort = await findAvailablePort(5173);
+  const viteUrl = `http://localhost:${vitePort}`;
+  console.log(`Dang dung Vite tai ${viteUrl}`);
+
+  startProcess(process.execPath, [viteBin, "--port", String(vitePort), "--host", "127.0.0.1"], {
     cwd: clientDir,
     env: { ...process.env, VITE_API_URL: apiUrl },
   });

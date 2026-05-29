@@ -1,25 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Layout from "./components/Layout";
 
 function App() {
-  const [path, setPath] = useState(window.location.pathname);
+  const navigate = useNavigate();
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem("libraryUser");
     return savedUser ? JSON.parse(savedUser) : null;
   });
-
-  useEffect(() => {
-    const handlePopState = () => setPath(window.location.pathname);
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  const navigate = (nextPath) => {
-    window.history.pushState({}, "", nextPath);
-    setPath(nextPath);
-  };
 
   const handleLogin = (userInfo) => {
     localStorage.setItem("libraryUser", JSON.stringify(userInfo));
@@ -30,28 +20,45 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("libraryUser");
     setUser(null);
-    navigate("/");
+    navigate("/login");
   };
 
-  if (!user) {
-    if (path === "/register") {
-      return (
-        <Register
-          onRegister={handleLogin}
-          onNavigateLogin={() => navigate("/login")}
-        />
-      );
-    }
-
-    return (
-      <Login
-        onLogin={handleLogin}
-        onNavigateRegister={() => navigate("/register")}
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          user ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Login
+              onLogin={handleLogin}
+              onNavigateRegister={() => navigate("/register")}
+            />
+          )
+        }
       />
-    );
-  }
-
-  return <Layout user={user} onLogout={handleLogout} />;
+      <Route
+        path="/register"
+        element={
+          user ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Register
+              onRegister={handleLogin}
+              onNavigateLogin={() => navigate("/login")}
+            />
+          )
+        }
+      />
+      <Route
+        path="/*"
+        element={
+          user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />
+        }
+      />
+    </Routes>
+  );
 }
 
 export default App;

@@ -16,6 +16,37 @@ function getStatusLabel(status) {
   return status;
 }
 
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportReadersAsJson(readers) {
+  downloadFile(JSON.stringify(readers, null, 2), "readers.json", "application/json");
+}
+
+function exportReadersAsCsv(readers) {
+  const headers = ["id", "name", "email", "phone", "booksBorrowed"];
+  const rows = readers.map((reader) => [
+    reader.id,
+    reader.name,
+    reader.email,
+    reader.phone,
+    reader.booksBorrowed ?? 0,
+  ]);
+  const csv = [headers.join(","),
+    ...rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+  downloadFile(csv, "readers.csv", "text/csv;charset=utf-8;");
+}
+
 function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
   const [readers, setReaders] = useState([]);
   const [books, setBooks] = useState([]);
@@ -197,9 +228,17 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
           <p>Quản lý hồ sơ độc giả, thông tin liên hệ và số sách đang mượn.</p>
         </div>
 
-        <button className="primary-button" type="button" onClick={() => onNavigateToCreate?.("readers")}>
-          Thêm sách mới
-        </button>
+        <div className="button-group">
+          <button className="secondary-button" type="button" onClick={() => exportReadersAsJson(readers)}>
+            Xuất JSON
+          </button>
+          <button className="secondary-button" type="button" onClick={() => exportReadersAsCsv(readers)}>
+            Xuất CSV
+          </button>
+          <button className="primary-button" type="button" onClick={() => onNavigateToCreate?.("readers")}>
+            Thêm độc giả
+          </button>
+        </div>
       </div>
 
       {errorReaders && <div className="error-message">{errorReaders}</div>}
@@ -294,7 +333,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
             </div>
           </div>
 
-          <table>
+          <div className="table-responsive">
+            <table className="table table-sm">
             <thead>
               <tr>
                 <th>Mã</th>
@@ -352,7 +392,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
 
@@ -380,7 +421,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
           ) : readerLoans.length === 0 ? (
             <div className="empty-state">Độc giả này chưa có phiếu mượn nào.</div>
           ) : (
-            <table>
+            <div className="table-responsive">
+              <table className="table table-sm">
               <thead>
                 <tr>
                   <th>Mã</th>
@@ -415,7 +457,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}

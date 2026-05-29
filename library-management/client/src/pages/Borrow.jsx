@@ -17,6 +17,40 @@ function getStatusLabel(status) {
   return status;
 }
 
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportLoansAsJson(loans) {
+  downloadFile(JSON.stringify(loans, null, 2), "loans.json", "application/json");
+}
+
+function exportLoansAsCsv(loans) {
+  const headers = ["id", "readerName", "bookTitle", "status", "borrowedDate", "dueDate", "lateDays", "fineAmount"];
+  const rows = loans.map((loan) => [
+    loan.id,
+    loan.readerName,
+    loan.bookTitle,
+    loan.status,
+    loan.borrowedDate || "",
+    loan.dueDate || "",
+    loan.lateDays ?? 0,
+    loan.fineAmount ?? 0,
+  ]);
+  const csv = [headers.join(","),
+    ...rows.map((row) => row.map((value) => `"${String(value || "").replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+  downloadFile(csv, "loans.csv", "text/csv;charset=utf-8;");
+}
+
 function Borrow() {
   const [readers, setReaders] = useState([]);
   const [books, setBooks] = useState([]);
@@ -108,14 +142,22 @@ function Borrow() {
     });
   }, [loans, searchQuery, statusFilter]);
 
-  const loanSummary = useMemo(
-    () => ({
+  const loanSummary = useMemo(() => {
+    const today = new Date(getToday());
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    return {
       borrowed: loans.filter((loan) => loan.status === "borrowed").length,
       overdue: loans.filter((loan) => loan.status === "overdue").length,
       returned: loans.filter((loan) => loan.status === "returned").length,
-    }),
-    [loans]
-  );
+      dueSoon: loans.filter((loan) => {
+        if (loan.status !== "borrowed" || !loan.dueDate) return false;
+        const dueDate = new Date(loan.dueDate);
+        const diff = dueDate.getTime() - today.getTime();
+        return diff >= 0 && diff <= 3 * msPerDay;
+      }).length,
+    };
+  }, [loans]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -233,6 +275,14 @@ function Borrow() {
           <h2>Mượn / Trả sách</h2>
           <p>Quản lý phiếu mượn, gia hạn và trả sách trực tiếp với backend.</p>
         </div>
+        <div className="button-group">
+          <button className="secondary-button" type="button" onClick={() => exportLoansAsJson(loans)}>
+            Xuất phiếu JSON
+          </button>
+          <button className="secondary-button" type="button" onClick={() => exportLoansAsCsv(loans)}>
+            Xuất phiếu CSV
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -303,7 +353,7 @@ function Borrow() {
           <h3>Danh sách phiếu mượn</h3>
           <div className="loan-summary">
             <span>Đang mượn: {loanSummary.borrowed}</span>
-            <span>Quá hạn: {loanSummary.overdue}</span>
+              <span>Sắp đến hạn: {loanSummary.dueSoon}</span>
             <span>Đã trả: {loanSummary.returned}</span>
           </div>
         </div>
@@ -335,7 +385,8 @@ function Borrow() {
         ) : loans.length === 0 ? (
           <div className="empty-state">Chưa có phiếu mượn nào.</div>
         ) : (
-          <table>
+          <div className="table-responsive">
+            <table className="table table-sm">
             <thead>
               <tr>
                 <th>Mã</th>
@@ -367,6 +418,14 @@ function Borrow() {
                     >
                       {getStatusLabel(loan.status)}
                     </span>
+                    {loan.status === "borrowed" && loan.dueDate &&
+                      new Date(loan.dueDate).getTime() - new Date(getToday()).getTime() <=
+                        3 * 24 * 60 * 60 * 1000 &&
+                      new Date(loan.dueDate).getTime() >= new Date(getToday()).getTime() && (
+                        <span className="badge warning" style={{ marginLeft: 8 }}>
+                          Sắp đến hạn
+                        </span>
+                      )}
                   </td>
                   <td>
                     {(loan.status === "borrowed" || loan.status === "overdue") && (
@@ -401,7 +460,8 @@ function Borrow() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </div>

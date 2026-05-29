@@ -53,7 +53,8 @@ function BookTable({ books, onEditBook, onDeleteBook, loading, error }) {
       ) : books.length === 0 ? (
         <div className="empty-state">Chưa có sách nào trong hệ thống.</div>
       ) : (
-        <table>
+        <div className="table-responsive">
+          <table className="table table-sm">
           <thead>
             <tr>
               <th>Mã</th>
@@ -103,7 +104,8 @@ function BookTable({ books, onEditBook, onDeleteBook, loading, error }) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
     </div>
   );

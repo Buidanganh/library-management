@@ -11,7 +11,7 @@ function sendJson(res, statusCode, payload) {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-user-role",
+    "Access-Control-Allow-Headers": "Content-Type, x-user-role, x-user-id, x-user-email",
   });
   res.end(JSON.stringify(payload));
 }
@@ -20,7 +20,7 @@ function sendNoContent(res) {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-user-role",
+    "Access-Control-Allow-Headers": "Content-Type, x-user-role, x-user-id, x-user-email",
   });
   res.end();
 }
@@ -71,6 +71,15 @@ function publicUser(user) {
   };
 }
 
+function publicUserWithReader(data, user) {
+  const reader = getReaderForUser(data, user);
+
+  return {
+    ...publicUser(user),
+    readerId: reader?.id || null,
+  };
+}
+
 function isAdminRequest(req) {
   return String(req.headers["x-user-role"] || "").toLowerCase() === "admin";
 }
@@ -82,6 +91,44 @@ function requireAdmin(req, res) {
 
   sendJson(res, 403, { error: "Chi admin moi co quyen thuc hien thao tac nay." });
   return false;
+}
+
+function getRequestUser(data, req) {
+  const userId = Number(req.headers["x-user-id"]);
+  const email = String(req.headers["x-user-email"] || "").trim().toLowerCase();
+
+  if (Number.isInteger(userId) && userId > 0) {
+    const userById = data.users.find((user) => user.id === userId);
+    if (userById) return userById;
+  }
+
+  if (email) {
+    return data.users.find((user) => user.email.toLowerCase() === email) || null;
+  }
+
+  return null;
+}
+
+function getReaderForUser(data, user) {
+  if (!user) return null;
+
+  return (
+    data.readers.find((reader) => reader.userId === user.id) ||
+    data.readers.find((reader) => reader.email.toLowerCase() === user.email.toLowerCase()) ||
+    null
+  );
+}
+
+function requireReaderForUser(data, req, res) {
+  const user = getRequestUser(data, req);
+  const reader = getReaderForUser(data, user);
+
+  if (!user || !reader) {
+    sendJson(res, 403, { error: "Khong tim thay ho so doc gia cua tai khoan dang nhap." });
+    return null;
+  }
+
+  return reader;
 }
 
 function normalizeDate(date = new Date()) {
@@ -245,7 +292,7 @@ async function handleAuth(req, res, pathname) {
       return;
     }
 
-    sendJson(res, 200, publicUser(user));
+    sendJson(res, 200, publicUserWithReader(data, user));
     return;
   }
 
@@ -281,7 +328,7 @@ async function handleAuth(req, res, pathname) {
       userId: user.id,
     });
     await writeData(data);
-    sendJson(res, 201, publicUser(user));
+    sendJson(res, 201, publicUserWithReader(data, user));
     return;
   }
 
@@ -312,6 +359,32 @@ async function handleBooks(req, res, pathname) {
     data.books.push(createdBook);
     await writeData(data);
     sendJson(res, 201, { ...createdBook, availableQuantity: createdBook.quantity });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/books/bulk") {
+    if (!requireAdmin(req, res)) return;
+
+    const body = await parseBody(req);
+    if (!Array.isArray(body) || body.length === 0) {
+      sendJson(res, 400, { error: "Vui long gui mot mang cac sach hop le." });
+      return;
+    }
+
+    const createdBooks = [];
+    for (const item of body) {
+      const { book, error } = validateBook(item);
+      if (error) {
+        sendJson(res, 400, { error: `Loi du lieu sach: ${error}` });
+        return;
+      }
+      const createdBook = { id: nextId(data.books), ...book };
+      data.books.push(createdBook);
+      createdBooks.push({ ...createdBook, availableQuantity: createdBook.quantity });
+    }
+
+    await writeData(data);
+    sendJson(res, 201, createdBooks);
     return;
   }
 
@@ -383,7 +456,22 @@ async function handleReaders(req, res, pathname) {
   const idMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)$/);
 
   if (req.method === "GET" && pathname === "/api/readers") {
-    sendJson(res, 200, decorateReaders(data));
+    if (isAdminRequest(req)) {
+      sendJson(res, 200, decorateReaders(data));
+      return;
+    }
+
+    const reader = requireReaderForUser(data, req, res);
+    if (!reader) return;
+
+    sendJson(
+      res,
+      200,
+      decorateReaders({
+        ...data,
+        readers: [reader],
+      })
+    );
     return;
   }
 
@@ -398,6 +486,16 @@ async function handleReaders(req, res, pathname) {
     if (!reader) {
       sendJson(res, 404, { error: "Khong tim thay doc gia." });
       return;
+    }
+
+    if (!isAdminRequest(req)) {
+      const currentReader = requireReaderForUser(data, req, res);
+      if (!currentReader) return;
+
+      if (currentReader.id !== readerId) {
+        sendJson(res, 403, { error: "Ban chi duoc xem lich su muon cua chinh minh." });
+        return;
+      }
     }
 
     sendJson(
@@ -523,16 +621,31 @@ async function handleLoans(req, res, pathname) {
   const extendMatch = pathname.match(/^\/api\/loans\/(\d+)\/extend$/);
 
   if (req.method === "GET" && pathname === "/api/loans") {
-    sendJson(res, 200, decorateLoans(data));
+    const loans = decorateLoans(data);
+
+    if (isAdminRequest(req)) {
+      sendJson(res, 200, loans);
+      return;
+    }
+
+    const reader = requireReaderForUser(data, req, res);
+    if (!reader) return;
+
+    sendJson(res, 200, loans.filter((loan) => loan.readerId === reader.id));
     return;
   }
 
   if (req.method === "POST" && pathname === "/api/loans") {
     const body = await parseBody(req);
-    const readerId = Number(body.readerId);
+    const reader = isAdminRequest(req)
+      ? data.readers.find((item) => item.id === Number(body.readerId))
+      : requireReaderForUser(data, req, res);
+
+    if (!reader) return;
+
+    const readerId = reader.id;
     const bookId = Number(body.bookId);
     const dueDate = String(body.dueDate || "").trim();
-    const reader = data.readers.find((item) => item.id === readerId);
     const book = data.books.find((item) => item.id === bookId);
 
     if (!reader || !book || !dueDate) {
@@ -594,6 +707,16 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
+    if (!isAdminRequest(req)) {
+      const reader = requireReaderForUser(data, req, res);
+      if (!reader) return;
+
+      if (loan.readerId !== reader.id) {
+        sendJson(res, 403, { error: "Ban chi duoc gia han phieu muon cua chinh minh." });
+        return;
+      }
+    }
+
     if (loan.status === "returned") {
       sendJson(res, 400, { error: "Khong the gia han phieu muon da tra." });
       return;
@@ -625,6 +748,16 @@ async function handleLoans(req, res, pathname) {
     if (!loan) {
       sendJson(res, 404, { error: "Khong tim thay phieu muon." });
       return;
+    }
+
+    if (!isAdminRequest(req)) {
+      const reader = requireReaderForUser(data, req, res);
+      if (!reader) return;
+
+      if (loan.readerId !== reader.id) {
+        sendJson(res, 403, { error: "Ban chi duoc tra sach cua chinh minh." });
+        return;
+      }
     }
 
     loan.status = "returned";

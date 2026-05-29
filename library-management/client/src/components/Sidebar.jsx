@@ -16,39 +16,48 @@ const menuItems = [
   { id: "overdue", label: "Sách quá hạn", icon: AlertTriangle },
 ];
 
-function Sidebar({ currentPage, onChangePage, user }) {
+function Sidebar({ currentPage, onChangePage, user, collapsed = false, onToggleCollapse }) {
   const visibleItems = menuItems.filter((item) => !item.adminOnly || user.role === "admin");
 
   return (
-    <aside className="sidebar">
-      <div className="brand">
+    <div className={"sidebar h-100 d-flex flex-column p-3" + (collapsed ? " collapsed" : "")}>
+      <div className="brand d-flex align-items-center gap-3 mb-3">
         <div className="brand-logo">L</div>
-        <div>
-          <h1>Library</h1>
-          <p>Management</p>
-        </div>
+        {!collapsed && (
+          <div>
+            <h1 className="h5 mb-0">Library</h1>
+            <p className="text-white-50 small mb-0">Management</p>
+          </div>
+        )}
       </div>
 
-      <nav className="nav-menu">
+      <div className="list-group mb-3">
         {visibleItems.map((item) => {
           const Icon = item.icon;
+          const active = item.id === currentPage;
 
           return (
             <button
               key={item.id}
               type="button"
-              className={item.id === currentPage ? "nav-item active" : "nav-item"}
+              title={item.label}
+              className={"list-group-item list-group-item-action d-flex align-items-center gap-2 " + (active ? "active" : "")}
               onClick={() => onChangePage(item.id)}
             >
-              <Icon size={20} />
-              <span>{item.label}</span>
+              <Icon size={18} />
+              {!collapsed && <span>{item.label}</span>}
             </button>
           );
         })}
-      </nav>
+      </div>
 
-      <div className="sidebar-footer">Quản lý thư viện thân thiện và trực quan.</div>
-    </aside>
+      <div className="mt-auto d-flex align-items-center gap-2">
+        <div className="text-white-50 small flex-grow-1">{!collapsed && "Quản lý thư viện thân thiện và trực quan."}</div>
+        <button className="btn btn-sm btn-outline-light" type="button" onClick={onToggleCollapse} aria-pressed={collapsed}>
+          {collapsed ? "»" : "‹"}
+        </button>
+      </div>
+    </div>
   );
 }
 

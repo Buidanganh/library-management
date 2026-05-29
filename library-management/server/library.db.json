@@ -197,6 +197,18 @@
       "name": "Bùi Đăng Anh",
       "email": "buidanganh@gmail.com",
       "phone": "0912345678"
+    },
+    {
+      "id": 5,
+      "name": "Đỗ Nguyễn Thùy Dương",
+      "email": "dothuyduong@gmail.com",
+      "phone": "0924578663"
+    },
+    {
+      "id": 6,
+      "name": "Anh Anh",
+      "email": "buidanganh0303@gmail.com",
+      "phone": "0965447886"
     }
   ],
   "loans": [
@@ -205,7 +217,7 @@
       "readerId": 1,
       "bookId": 2,
       "borrowedDate": "2026-05-10",
-      "dueDate": "2026-05-24",
+      "dueDate": "2026-05-31",
       "returnedDate": null,
       "status": "borrowed"
     },
@@ -233,6 +245,15 @@
       "bookId": 11,
       "borrowedDate": "2026-05-28",
       "dueDate": "2026-06-18",
+      "returnedDate": null,
+      "status": "borrowed"
+    },
+    {
+      "id": 5,
+      "readerId": 4,
+      "bookId": 11,
+      "borrowedDate": "2026-05-28",
+      "dueDate": "2026-06-11",
       "returnedDate": null,
       "status": "borrowed"
     }

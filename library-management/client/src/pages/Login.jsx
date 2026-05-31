@@ -17,6 +17,11 @@ function Login({ onLogin, onNavigateRegister }) {
     }));
   };
 
+  const fillDemoAccount = (account) => {
+    setError("");
+    setFormData(account);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -71,11 +76,30 @@ function Login({ onLogin, onNavigateRegister }) {
           {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
 
+        <div className="demo-login-actions">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => fillDemoAccount({ email: "admin@gmail.com", password: "123456" })}
+          >
+            Dùng tài khoản admin
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => fillDemoAccount({ email: "buidanganh@gmail.com", password: "123456" })}
+          >
+            Dùng tài khoản user
+          </button>
+        </div>
+
         <button className="link-button" type="button" onClick={onNavigateRegister}>
           Chưa có tài khoản? Đăng ký user
         </button>
 
-        <div className="demo-account">Tài khoản admin: admin@gmail.com / 123456</div>
+        <div className="demo-account">
+          Admin quản lý toàn bộ hệ thống. User tra cứu sách, mượn sách và xem phiếu mượn của mình.
+        </div>
       </form>
     </div>
   );

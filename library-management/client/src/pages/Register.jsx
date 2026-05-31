@@ -60,6 +60,9 @@ function Register({ onRegister, onNavigateLogin }) {
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>Đăng ký</h1>
         <p>Tạo tài khoản user để tra cứu và mượn sách trong thư viện.</p>
+        <div className="permission-note">
+          Tài khoản mới được cấp quyền độc giả. Quyền admin chỉ dùng cho quản trị viên thư viện.
+        </div>
 
         {error && <div className="error-message">{error}</div>}
 

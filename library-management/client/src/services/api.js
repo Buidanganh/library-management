@@ -1,5 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+function readSavedUser() {
+  try {
+    const savedUser = localStorage.getItem("libraryUser");
+    return savedUser ? JSON.parse(savedUser) : null;
+  } catch {
+    localStorage.removeItem("libraryUser");
+    return null;
+  }
+}
+
 async function handleResponse(response) {
   const content = await response.text();
   let payload = {};
@@ -24,8 +34,7 @@ async function handleResponse(response) {
 }
 
 function request(path, options = {}) {
-  const savedUser = localStorage.getItem("libraryUser");
-  const user = savedUser ? JSON.parse(savedUser) : null;
+  const user = readSavedUser();
   const headers = {
     ...(options.headers || {}),
     ...(user?.role ? { "x-user-role": user.role } : {}),
@@ -109,6 +118,14 @@ export function createReader(reader) {
   });
 }
 
+export function createReadersBulk(readers) {
+  return request("/api/readers/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(readers),
+  });
+}
+
 export function updateReader(readerId, reader) {
   if (!readerId) {
     throw new Error("Không xác định được mã độc giả.");
@@ -131,6 +148,18 @@ export function deleteReader(readerId) {
   });
 }
 
+export function updateReaderAccountStatus(readerId, status) {
+  if (!readerId) {
+    throw new Error("Không xác định được mã độc giả.");
+  }
+
+  return request(`/api/readers/${readerId}/account`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
 export function getLoans() {
   return request("/api/loans");
 }
@@ -149,6 +178,18 @@ export function returnLoan(loanId) {
   });
 }
 
+export function updateLoanFineStatus(loanId, fineStatus) {
+  if (!loanId) {
+    throw new Error("Không xác định được mã phiếu mượn.");
+  }
+
+  return request(`/api/loans/${loanId}/fine`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fineStatus }),
+  });
+}
+
 export function extendLoan(loanId, dueDate) {
   if (!loanId) {
     throw new Error("Không xác định được mã phiếu mượn.");
@@ -163,4 +204,69 @@ export function extendLoan(loanId, dueDate) {
 
 export function getStats() {
   return request("/api/stats");
+}
+
+export function getReservations() {
+  return request("/api/reservations");
+}
+
+export function createReservation(payload) {
+  return request("/api/reservations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateReservationStatus(reservationId, status) {
+  if (!reservationId) {
+    throw new Error("Không xác định được mã đặt trước.");
+  }
+
+  return request(`/api/reservations/${reservationId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function getReviews() {
+  return request("/api/reviews");
+}
+
+export function createReview(payload) {
+  return request("/api/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getCatalog() {
+  return request("/api/catalog");
+}
+
+export function createCatalogItem(payload) {
+  return request("/api/catalog", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteCatalogItem(type, name) {
+  return request(`/api/catalog/${type}/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+}
+
+export function getActivities() {
+  return request("/api/activities");
+}
+
+export function deleteActivities(olderThan) {
+  const query = olderThan ? `?olderThan=${encodeURIComponent(olderThan)}` : "";
+  return request(`/api/activities${query}`, {
+    method: "DELETE",
+  });
 }

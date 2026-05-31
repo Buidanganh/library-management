@@ -18,159 +18,653 @@
   "books": [
     {
       "id": 1,
-      "title": "Clean Code",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg",
-      "author": "Robert C. Martin",
-      "category": "Lap trinh",
-      "publisher": "Prentice Hall",
-      "year": "2008",
-      "quantity": 10,
-      "shelfLocation": "Ke A1",
-      "description": "Sach ve cach viet ma nguon sach va de bao tri."
+      "title": "Tôi Tài Giỏi, Bạn Cũng Thế",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9789812617767-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=T%C3%B4i%20T%C3%A0i%20Gi%E1%BB%8Fi%2C%20B%E1%BA%A1n%20C%C5%A9ng%20Th%E1%BA%BF",
+      "author": "Adam Khoo",
+      "category": "Học hành",
+      "publisher": "NXB Phụ Nữ Việt Nam",
+      "year": "2020",
+      "quantity": 12,
+      "shelfLocation": "Kệ H1",
+      "description": "Sách hướng dẫn phương pháp học tập, ghi nhớ và tạo động lực cho học sinh sinh viên."
     },
     {
       "id": 2,
-      "title": "Design Patterns",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780201633610-L.jpg",
-      "author": "Erich Gamma",
-      "category": "Ky thuat phan mem",
-      "publisher": "Addison-Wesley",
-      "year": "1994",
-      "quantity": 6,
-      "shelfLocation": "Ke B2",
-      "description": "Cac mau thiet ke pho bien trong lap trinh huong doi tuong."
+      "title": "Khuyến Học",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780231167145-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Khuy%E1%BA%BFn%20H%E1%BB%8Dc",
+      "author": "Fukuzawa Yukichi",
+      "category": "Học hành",
+      "publisher": "NXB Thế Giới",
+      "year": "2018",
+      "quantity": 8,
+      "shelfLocation": "Kệ H1",
+      "description": "Tác phẩm kinh điển về tinh thần tự học, khai phóng và phát triển tri thức."
     },
     {
       "id": 3,
-      "title": "You Don't Know JS",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781491904244-L.jpg",
-      "author": "Kyle Simpson",
-      "category": "JavaScript",
-      "publisher": "O'Reilly",
-      "year": "2015",
-      "quantity": 8,
-      "shelfLocation": "Ke C1",
-      "description": "Giai thich sau ve ngon ngu JavaScript."
+      "title": "Make It Stick - Học Tập Bền Vững",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780674729018-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Make%20It%20Stick%20-%20H%E1%BB%8Dc%20T%E1%BA%ADp%20B%E1%BB%81n%20V%E1%BB%AFng",
+      "author": "Peter C. Brown",
+      "category": "Học hành",
+      "publisher": "Harvard University Press",
+      "year": "2014",
+      "quantity": 10,
+      "shelfLocation": "Kệ H2",
+      "description": "Các phương pháp học tập dựa trên khoa học nhận thức giúp ghi nhớ lâu hơn."
     },
     {
       "id": 4,
-      "title": "The Pragmatic Programmer",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780201616224-L.jpg",
-      "author": "Andrew Hunt, David Thomas",
-      "category": "Lap trinh",
-      "publisher": "Addison-Wesley",
-      "year": "1999",
+      "title": "A Mind For Numbers - Tư Duy Toán Học",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780399165245-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=A%20Mind%20For%20Numbers%20-%20T%C6%B0%20Duy%20To%C3%A1n%20H%E1%BB%8Dc",
+      "author": "Barbara Oakley",
+      "category": "Học hành",
+      "publisher": "TarcherPerigee",
+      "year": "2014",
       "quantity": 7,
-      "shelfLocation": "Ke A2",
-      "description": "Huong dan tu duy thuc chien cho lap trinh vien."
+      "shelfLocation": "Kệ H2",
+      "description": "Cách học toán, khoa học và kỹ thuật hiệu quả bằng phương pháp đơn giản."
     },
     {
       "id": 5,
-      "title": "Refactoring",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780134757599-L.jpg",
-      "author": "Martin Fowler",
-      "category": "Ky thuat phan mem",
-      "publisher": "Addison-Wesley",
-      "year": "2018",
-      "quantity": 5,
-      "shelfLocation": "Ke B1",
-      "description": "Cac ky thuat cai thien cau truc ma nguon."
+      "title": "Deep Work - Làm Việc Sâu",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781455586691-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Deep%20Work%20-%20L%C3%A0m%20Vi%E1%BB%87c%20S%C3%A2u",
+      "author": "Cal Newport",
+      "category": "Học hành",
+      "publisher": "Grand Central Publishing",
+      "year": "2016",
+      "quantity": 6,
+      "shelfLocation": "Kệ H3",
+      "description": "Kỹ năng tập trung sâu để học tập và làm việc có chất lượng cao."
     },
     {
       "id": 6,
-      "title": "Introduction to Algorithms",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780262033848-L.jpg",
-      "author": "Thomas H. Cormen",
-      "category": "Giai thuat",
-      "publisher": "MIT Press",
-      "year": "2009",
-      "quantity": 4,
-      "shelfLocation": "Ke D1",
-      "description": "Giao trinh nen tang ve thuat toan va cau truc du lieu."
+      "title": "Mắt Biếc",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786041105959-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=M%E1%BA%AFt%20Bi%E1%BA%BFc",
+      "author": "Nguyễn Nhật Ánh",
+      "category": "Tình yêu",
+      "publisher": "NXB Trẻ",
+      "year": "2019",
+      "quantity": 9,
+      "shelfLocation": "Kệ T1",
+      "description": "Câu chuyện tình yêu trong trẻo, nhiều tiếc nuối của tuổi học trò."
     },
     {
       "id": 7,
-      "title": "Database System Concepts",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780073523323-L.jpg",
-      "author": "Abraham Silberschatz",
-      "category": "Co so du lieu",
-      "publisher": "McGraw-Hill",
-      "year": "2010",
-      "quantity": 6,
-      "shelfLocation": "Ke E1",
-      "description": "Kien thuc nen tang ve he quan tri co so du lieu."
+      "title": "Ngày Xưa Có Một Chuyện Tình",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786041113244-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Ng%C3%A0y%20X%C6%B0a%20C%C3%B3%20M%E1%BB%99t%20Chuy%E1%BB%87n%20T%C3%ACnh",
+      "author": "Nguyễn Nhật Ánh",
+      "category": "Tình yêu",
+      "publisher": "NXB Trẻ",
+      "year": "2020",
+      "quantity": 8,
+      "shelfLocation": "Kệ T1",
+      "description": "Một mối tình tuổi trẻ dịu dàng giữa tình bạn, rung động và lựa chọn."
     },
     {
       "id": 8,
-      "title": "Computer Networking: A Top-Down Approach",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780133594140-L.jpg",
-      "author": "James F. Kurose, Keith W. Ross",
-      "category": "Mang may tinh",
-      "publisher": "Pearson",
-      "year": "2016",
-      "quantity": 5,
-      "shelfLocation": "Ke F1",
-      "description": "Nhap mon mang may tinh theo cach tiep can tu tren xuong."
+      "title": "Kiêu Hãnh Và Định Kiến",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=Ki%C3%AAu%20H%C3%A3nh%20V%C3%A0%20%C4%90%E1%BB%8Bnh%20Ki%E1%BA%BFn",
+      "author": "Jane Austen",
+      "category": "Tình yêu",
+      "publisher": "Penguin Classics",
+      "year": "2003",
+      "quantity": 10,
+      "shelfLocation": "Kệ T2",
+      "description": "Tiểu thuyết tình cảm kinh điển về tình yêu, định kiến và tầng lớp xã hội."
     },
     {
       "id": 9,
-      "title": "Operating System Concepts",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781118063330-L.jpg",
-      "author": "Abraham Silberschatz",
-      "category": "He dieu hanh",
-      "publisher": "Wiley",
+      "title": "Khi Lỗi Thuộc Về Những Vì Sao",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780525478812-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Khi%20L%E1%BB%97i%20Thu%E1%BB%99c%20V%E1%BB%81%20Nh%E1%BB%AFng%20V%C3%AC%20Sao",
+      "author": "John Green",
+      "category": "Tình yêu",
+      "publisher": "Dutton Books",
       "year": "2012",
-      "quantity": 4,
-      "shelfLocation": "Ke F2",
-      "description": "Tong quan ve tien trinh, bo nho, luu tru va bao mat he dieu hanh."
+      "quantity": 7,
+      "shelfLocation": "Kệ T2",
+      "description": "Câu chuyện tình yêu tuổi trẻ cảm động giữa bệnh tật và khát vọng sống."
     },
     {
       "id": 10,
-      "title": "Artificial Intelligence: A Modern Approach",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780134610993-L.jpg",
-      "author": "Stuart Russell, Peter Norvig",
-      "category": "Tri tue nhan tao",
-      "publisher": "Pearson",
-      "year": "2020",
-      "quantity": 3,
-      "shelfLocation": "Ke G1",
-      "description": "Sach nen tang ve tri tue nhan tao hien dai."
+      "title": "Rừng Na Uy",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780375704024-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=R%E1%BB%ABng%20Na%20Uy",
+      "author": "Haruki Murakami",
+      "category": "Tình yêu",
+      "publisher": "Vintage",
+      "year": "2000",
+      "quantity": 5,
+      "shelfLocation": "Kệ T3",
+      "description": "Tiểu thuyết về tình yêu, mất mát và tuổi trẻ trong bối cảnh Nhật Bản."
     },
     {
       "id": 11,
-      "title": "Deep Learning",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780262035613-L.jpg",
-      "author": "Ian Goodfellow, Yoshua Bengio, Aaron Courville",
-      "category": "Tri tue nhan tao",
-      "publisher": "MIT Press",
-      "year": "2016",
-      "quantity": 4,
-      "shelfLocation": "Ke G2",
-      "description": "Tai lieu chuyen sau ve hoc sau va mang neural."
+      "title": "Doraemon Tập 1",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781421527893-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Doraemon%20T%E1%BA%ADp%201",
+      "author": "Fujiko F. Fujio",
+      "category": "Truyện tranh",
+      "publisher": "Shogakukan",
+      "year": "2013",
+      "quantity": 15,
+      "shelfLocation": "Kệ C1",
+      "description": "Những chuyến phiêu lưu vui nhộn của Doraemon và Nobita."
     },
     {
       "id": 12,
-      "title": "Eloquent JavaScript",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781593279509-L.jpg",
-      "author": "Marijn Haverbeke",
-      "category": "JavaScript",
-      "publisher": "No Starch Press",
-      "year": "2018",
-      "quantity": 9,
-      "shelfLocation": "Ke C2",
-      "description": "Hoc JavaScript qua cac vi du va bai tap thuc hanh."
+      "title": "Thám Tử Lừng Danh Conan Tập 1",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781591163275-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=Th%C3%A1m%20T%E1%BB%AD%20L%E1%BB%ABng%20Danh%20Conan%20T%E1%BA%ADp%201",
+      "author": "Gosho Aoyama",
+      "category": "Truyện tranh",
+      "publisher": "VIZ Media",
+      "year": "2004",
+      "quantity": 14,
+      "shelfLocation": "Kệ C1",
+      "description": "Truyện tranh trinh thám về thám tử nhí Conan phá các vụ án bí ẩn."
     },
     {
       "id": 13,
-      "title": "Head First Design Patterns",
-      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780596007126-L.jpg",
-      "author": "Eric Freeman, Elisabeth Robson",
-      "category": "Ky thuat phan mem",
-      "publisher": "O'Reilly",
-      "year": "2004",
+      "title": "One Piece Tập 1",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781569319017-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=One%20Piece%20T%E1%BA%ADp%201",
+      "author": "Eiichiro Oda",
+      "category": "Truyện tranh",
+      "publisher": "VIZ Media",
+      "year": "2003",
+      "quantity": 12,
+      "shelfLocation": "Kệ C2",
+      "description": "Hành trình ra khơi tìm kho báu của Luffy và băng hải tặc Mũ Rơm."
+    },
+    {
+      "id": 14,
+      "title": "Naruto Tập 1",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781569319000-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Naruto%20T%E1%BA%ADp%201",
+      "author": "Masashi Kishimoto",
+      "category": "Truyện tranh",
+      "publisher": "VIZ Media",
+      "year": "2003",
+      "quantity": 11,
+      "shelfLocation": "Kệ C2",
+      "description": "Câu chuyện về Naruto và ước mơ trở thành Hokage."
+    },
+    {
+      "id": 15,
+      "title": "Dragon Ball Tập 1",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781569319208-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Dragon%20Ball%20T%E1%BA%ADp%201",
+      "author": "Akira Toriyama",
+      "category": "Truyện tranh",
+      "publisher": "VIZ Media",
+      "year": "2003",
+      "quantity": 13,
+      "shelfLocation": "Kệ C3",
+      "description": "Cuộc phiêu lưu kỳ thú của Songoku cùng những viên ngọc rồng."
+    },
+    {
+      "id": 16,
+      "title": "Tôi Thấy Hoa Vàng Trên Cỏ Xanh",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786041119734-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=T%C3%B4i%20Th%E1%BA%A5y%20Hoa%20V%C3%A0ng%20Tr%C3%AAn%20C%E1%BB%8F%20Xanh",
+      "author": "Nguyễn Nhật Ánh",
+      "category": "Văn học Việt Nam",
+      "publisher": "NXB Trẻ",
+      "year": "2018",
+      "quantity": 10,
+      "shelfLocation": "Kệ V1",
+      "description": "Tiểu thuyết tuổi thơ trong trẻo về gia đình, tình bạn và miền quê."
+    },
+    {
+      "id": 17,
+      "title": "Cho Tôi Xin Một Vé Đi Tuổi Thơ",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786041111745-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Cho%20T%C3%B4i%20Xin%20M%E1%BB%99t%20V%C3%A9%20%C4%90i%20Tu%E1%BB%95i%20Th%C6%A1",
+      "author": "Nguyễn Nhật Ánh",
+      "category": "Văn học Việt Nam",
+      "publisher": "NXB Trẻ",
+      "year": "2018",
+      "quantity": 9,
+      "shelfLocation": "Kệ V1",
+      "description": "Tác phẩm gợi nhớ tuổi thơ với giọng văn hài hước và cảm động."
+    },
+    {
+      "id": 18,
+      "title": "Dế Mèn Phiêu Lưu Ký",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786042097499-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=D%E1%BA%BF%20M%C3%A8n%20Phi%C3%AAu%20L%C6%B0u%20K%C3%BD",
+      "author": "Tô Hoài",
+      "category": "Văn học Việt Nam",
+      "publisher": "NXB Kim Đồng",
+      "year": "2020",
+      "quantity": 12,
+      "shelfLocation": "Kệ V2",
+      "description": "Tác phẩm thiếu nhi kinh điển về hành trình trưởng thành của Dế Mèn."
+    },
+    {
+      "id": 19,
+      "title": "Số Đỏ",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786049634062-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=S%E1%BB%91%20%C4%90%E1%BB%8F",
+      "author": "Vũ Trọng Phụng",
+      "category": "Văn học Việt Nam",
+      "publisher": "NXB Văn Học",
+      "year": "2019",
       "quantity": 6,
-      "shelfLocation": "Ke B3",
-      "description": "Giai thich design pattern bang cach truc quan va de tiep can."
+      "shelfLocation": "Kệ V2",
+      "description": "Tiểu thuyết trào phúng nổi bật về xã hội đô thị Việt Nam đầu thế kỷ XX."
+    },
+    {
+      "id": 20,
+      "title": "Tắt Đèn",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786049634079-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=T%E1%BA%AFt%20%C4%90%C3%A8n",
+      "author": "Ngô Tất Tố",
+      "category": "Văn học Việt Nam",
+      "publisher": "NXB Văn Học",
+      "year": "2019",
+      "quantity": 7,
+      "shelfLocation": "Kệ V3",
+      "description": "Tác phẩm hiện thực phê phán về thân phận người nông dân."
+    },
+    {
+      "id": 21,
+      "title": "Nhà Giả Kim",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780062315007-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Nh%C3%A0%20Gi%E1%BA%A3%20Kim",
+      "author": "Paulo Coelho",
+      "category": "Văn học nước ngoài",
+      "publisher": "HarperOne",
+      "year": "2014",
+      "quantity": 10,
+      "shelfLocation": "Kệ N1",
+      "description": "Hành trình theo đuổi ước mơ và lắng nghe tiếng gọi của trái tim."
+    },
+    {
+      "id": 22,
+      "title": "Hoàng Tử Bé",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780156012195-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Ho%C3%A0ng%20T%E1%BB%AD%20B%C3%A9",
+      "author": "Antoine de Saint-Exupéry",
+      "category": "Văn học nước ngoài",
+      "publisher": "Mariner Books",
+      "year": "2000",
+      "quantity": 11,
+      "shelfLocation": "Kệ N1",
+      "description": "Câu chuyện triết lý nhẹ nhàng về tình bạn, tình yêu và sự trưởng thành."
+    },
+    {
+      "id": 23,
+      "title": "Không Gia Đình",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781514638811-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Kh%C3%B4ng%20Gia%20%C4%90%C3%ACnh",
+      "author": "Hector Malot",
+      "category": "Văn học nước ngoài",
+      "publisher": "CreateSpace",
+      "year": "2015",
+      "quantity": 7,
+      "shelfLocation": "Kệ N2",
+      "description": "Cuộc phiêu lưu cảm động của cậu bé Rémi trên hành trình tìm mái ấm."
+    },
+    {
+      "id": 24,
+      "title": "Ông Già Và Biển Cả",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780684801223-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=%C3%94ng%20Gi%C3%A0%20V%C3%A0%20Bi%E1%BB%83n%20C%E1%BA%A3",
+      "author": "Ernest Hemingway",
+      "category": "Văn học nước ngoài",
+      "publisher": "Scribner",
+      "year": "1995",
+      "quantity": 6,
+      "shelfLocation": "Kệ N2",
+      "description": "Tác phẩm kinh điển về nghị lực, cô độc và phẩm giá con người."
+    },
+    {
+      "id": 25,
+      "title": "Bắt Trẻ Đồng Xanh",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780316769488-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=B%E1%BA%AFt%20Tr%E1%BA%BB%20%C4%90%E1%BB%93ng%20Xanh",
+      "author": "J. D. Salinger",
+      "category": "Văn học nước ngoài",
+      "publisher": "Little, Brown",
+      "year": "1991",
+      "quantity": 5,
+      "shelfLocation": "Kệ N3",
+      "description": "Tiểu thuyết kinh điển về tuổi trẻ, lạc lõng và hành trình trưởng thành."
+    },
+    {
+      "id": 26,
+      "title": "Đắc Nhân Tâm",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780671027032-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=%C4%90%E1%BA%AFc%20Nh%C3%A2n%20T%C3%A2m",
+      "author": "Dale Carnegie",
+      "category": "Kỹ năng sống",
+      "publisher": "Simon & Schuster",
+      "year": "1998",
+      "quantity": 13,
+      "shelfLocation": "Kệ K1",
+      "description": "Những nguyên tắc giao tiếp, tạo thiện cảm và xây dựng quan hệ."
+    },
+    {
+      "id": 27,
+      "title": "7 Thói Quen Hiệu Quả",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780743269513-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=7%20Th%C3%B3i%20Quen%20Hi%E1%BB%87u%20Qu%E1%BA%A3",
+      "author": "Stephen R. Covey",
+      "category": "Kỹ năng sống",
+      "publisher": "Free Press",
+      "year": "2004",
+      "quantity": 8,
+      "shelfLocation": "Kệ K1",
+      "description": "Các thói quen nền tảng giúp quản lý bản thân và làm việc hiệu quả."
+    },
+    {
+      "id": 28,
+      "title": "Tư Duy Nhanh Và Chậm",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780374275631-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=T%C6%B0%20Duy%20Nhanh%20V%C3%A0%20Ch%E1%BA%ADm",
+      "author": "Daniel Kahneman",
+      "category": "Kỹ năng sống",
+      "publisher": "Farrar, Straus and Giroux",
+      "year": "2011",
+      "quantity": 7,
+      "shelfLocation": "Kệ K2",
+      "description": "Giải thích hai hệ thống tư duy ảnh hưởng đến quyết định của con người."
+    },
+    {
+      "id": 29,
+      "title": "Atomic Habits - Thói Quen Nguyên Tử",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Atomic%20Habits%20-%20Th%C3%B3i%20Quen%20Nguy%C3%AAn%20T%E1%BB%AD",
+      "author": "James Clear",
+      "category": "Kỹ năng sống",
+      "publisher": "Avery",
+      "year": "2018",
+      "quantity": 12,
+      "shelfLocation": "Kệ K2",
+      "description": "Phương pháp xây dựng thói quen nhỏ để tạo thay đổi lớn."
+    },
+    {
+      "id": 30,
+      "title": "Dám Bị Ghét",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781501197277-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=D%C3%A1m%20B%E1%BB%8B%20Gh%C3%A9t",
+      "author": "Ichiro Kishimi, Fumitake Koga",
+      "category": "Kỹ năng sống",
+      "publisher": "Atria Books",
+      "year": "2018",
+      "quantity": 9,
+      "shelfLocation": "Kệ K3",
+      "description": "Cuộc đối thoại về tự do, lòng can đảm và tâm lý học Adler."
+    },
+    {
+      "id": 31,
+      "title": "Lược Sử Thời Gian",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780553380163-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=L%C6%B0%E1%BB%A3c%20S%E1%BB%AD%20Th%E1%BB%9Di%20Gian",
+      "author": "Stephen Hawking",
+      "category": "Khoa học",
+      "publisher": "Bantam",
+      "year": "1998",
+      "quantity": 6,
+      "shelfLocation": "Kệ S1",
+      "description": "Giới thiệu vũ trụ học, thời gian, lỗ đen và nguồn gốc vũ trụ."
+    },
+    {
+      "id": 32,
+      "title": "Vũ Trụ Trong Vỏ Hạt Dẻ",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780553802023-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=V%C5%A9%20Tr%E1%BB%A5%20Trong%20V%E1%BB%8F%20H%E1%BA%A1t%20D%E1%BA%BB",
+      "author": "Stephen Hawking",
+      "category": "Khoa học",
+      "publisher": "Bantam",
+      "year": "2001",
+      "quantity": 5,
+      "shelfLocation": "Kệ S1",
+      "description": "Những ý tưởng khoa học hiện đại về không gian, thời gian và vũ trụ."
+    },
+    {
+      "id": 33,
+      "title": "Gen Vị Kỷ",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780198788607-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Gen%20V%E1%BB%8B%20K%E1%BB%B7",
+      "author": "Richard Dawkins",
+      "category": "Khoa học",
+      "publisher": "Oxford University Press",
+      "year": "2016",
+      "quantity": 5,
+      "shelfLocation": "Kệ S2",
+      "description": "Góc nhìn tiến hóa về gen, hành vi và sinh học hiện đại."
+    },
+    {
+      "id": 34,
+      "title": "Sapiens - Lược Sử Loài Người",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780062316097-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Sapiens%20-%20L%C6%B0%E1%BB%A3c%20S%E1%BB%AD%20Lo%C3%A0i%20Ng%C6%B0%E1%BB%9Di",
+      "author": "Yuval Noah Harari",
+      "category": "Lịch sử",
+      "publisher": "Harper",
+      "year": "2015",
+      "quantity": 10,
+      "shelfLocation": "Kệ L1",
+      "description": "Lịch sử phát triển của loài người từ săn bắt hái lượm đến văn minh hiện đại."
+    },
+    {
+      "id": 35,
+      "title": "Homo Deus",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780062464316-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Homo%20Deus",
+      "author": "Yuval Noah Harari",
+      "category": "Lịch sử",
+      "publisher": "Harper",
+      "year": "2017",
+      "quantity": 7,
+      "shelfLocation": "Kệ L1",
+      "description": "Những dự báo về tương lai nhân loại, công nghệ và ý nghĩa sống."
+    },
+    {
+      "id": 36,
+      "title": "Việt Nam Sử Lược",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786049633997-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=Vi%E1%BB%87t%20Nam%20S%E1%BB%AD%20L%C6%B0%E1%BB%A3c",
+      "author": "Trần Trọng Kim",
+      "category": "Lịch sử",
+      "publisher": "NXB Văn Học",
+      "year": "2018",
+      "quantity": 8,
+      "shelfLocation": "Kệ L2",
+      "description": "Tổng quan lịch sử Việt Nam qua các triều đại và biến cố lớn."
+    },
+    {
+      "id": 37,
+      "title": "Đại Việt Sử Ký Toàn Thư",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786049563034-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=%C4%90%E1%BA%A1i%20Vi%E1%BB%87t%20S%E1%BB%AD%20K%C3%BD%20To%C3%A0n%20Th%C6%B0",
+      "author": "Nhiều tác giả",
+      "category": "Lịch sử",
+      "publisher": "NXB Khoa Học Xã Hội",
+      "year": "2017",
+      "quantity": 4,
+      "shelfLocation": "Kệ L2",
+      "description": "Bộ sử ký quan trọng ghi chép lịch sử Việt Nam thời phong kiến."
+    },
+    {
+      "id": 38,
+      "title": "Cha Giàu Cha Nghèo",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781612680194-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Cha%20Gi%C3%A0u%20Cha%20Ngh%C3%A8o",
+      "author": "Robert T. Kiyosaki",
+      "category": "Kinh tế",
+      "publisher": "Plata Publishing",
+      "year": "2017",
+      "quantity": 12,
+      "shelfLocation": "Kệ E1",
+      "description": "Những bài học tài chính cá nhân và tư duy đầu tư phổ biến."
+    },
+    {
+      "id": 39,
+      "title": "Người Giàu Có Nhất Thành Babylon",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780451205360-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Ng%C6%B0%E1%BB%9Di%20Gi%C3%A0u%20C%C3%B3%20Nh%E1%BA%A5t%20Th%C3%A0nh%20Babylon",
+      "author": "George S. Clason",
+      "category": "Kinh tế",
+      "publisher": "Signet",
+      "year": "2002",
+      "quantity": 9,
+      "shelfLocation": "Kệ E1",
+      "description": "Bài học quản lý tiền bạc qua các câu chuyện cổ Babylon."
+    },
+    {
+      "id": 40,
+      "title": "Tâm Lý Học Về Tiền",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780857197689-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=T%C3%A2m%20L%C3%BD%20H%E1%BB%8Dc%20V%E1%BB%81%20Ti%E1%BB%81n",
+      "author": "Morgan Housel",
+      "category": "Kinh tế",
+      "publisher": "Harriman House",
+      "year": "2020",
+      "quantity": 10,
+      "shelfLocation": "Kệ E2",
+      "description": "Những góc nhìn hành vi về tiền bạc, đầu tư và quyết định tài chính."
+    },
+    {
+      "id": 41,
+      "title": "Bắt Đầu Với Câu Hỏi Tại Sao",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781591842804-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=B%E1%BA%AFt%20%C4%90%E1%BA%A7u%20V%E1%BB%9Bi%20C%C3%A2u%20H%E1%BB%8Fi%20T%E1%BA%A1i%20Sao",
+      "author": "Simon Sinek",
+      "category": "Kinh tế",
+      "publisher": "Portfolio",
+      "year": "2009",
+      "quantity": 6,
+      "shelfLocation": "Kệ E2",
+      "description": "Cách các nhà lãnh đạo truyền cảm hứng bắt đầu từ câu hỏi tại sao."
+    },
+    {
+      "id": 42,
+      "title": "Muôn Kiếp Nhân Sinh",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786045878903-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Mu%C3%B4n%20Ki%E1%BA%BFp%20Nh%C3%A2n%20Sinh",
+      "author": "Nguyên Phong",
+      "category": "Tâm linh",
+      "publisher": "NXB Tổng Hợp TP.HCM",
+      "year": "2020",
+      "quantity": 11,
+      "shelfLocation": "Kệ P1",
+      "description": "Những câu chuyện chiêm nghiệm về nhân quả, đời sống và chuyển hóa."
+    },
+    {
+      "id": 43,
+      "title": "Đường Mây Qua Xứ Tuyết",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786045877777-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=%C4%90%C6%B0%E1%BB%9Dng%20M%C3%A2y%20Qua%20X%E1%BB%A9%20Tuy%E1%BA%BFt",
+      "author": "Nguyên Phong",
+      "category": "Tâm linh",
+      "publisher": "NXB Tổng Hợp TP.HCM",
+      "year": "2019",
+      "quantity": 7,
+      "shelfLocation": "Kệ P1",
+      "description": "Hành trình tìm hiểu văn hóa, tâm linh và trí tuệ phương Đông."
+    },
+    {
+      "id": 44,
+      "title": "Những Tù Nhân Của Địa Lý",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781501121470-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=Nh%E1%BB%AFng%20T%C3%B9%20Nh%C3%A2n%20C%E1%BB%A7a%20%C4%90%E1%BB%8Ba%20L%C3%BD",
+      "author": "Tim Marshall",
+      "category": "Địa lý",
+      "publisher": "Scribner",
+      "year": "2016",
+      "quantity": 6,
+      "shelfLocation": "Kệ D1",
+      "description": "Giải thích chính trị thế giới qua bản đồ, địa hình và tài nguyên."
+    },
+    {
+      "id": 45,
+      "title": "Bản Đồ Thế Giới",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781465424631-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=B%E1%BA%A3n%20%C4%90%E1%BB%93%20Th%E1%BA%BF%20Gi%E1%BB%9Bi",
+      "author": "Nhiều tác giả",
+      "category": "Địa lý",
+      "publisher": "DK Children",
+      "year": "2015",
+      "quantity": 9,
+      "shelfLocation": "Kệ D1",
+      "description": "Sách minh họa giúp tìm hiểu các châu lục, quốc gia và văn hóa."
+    },
+    {
+      "id": 46,
+      "title": "Harry Potter Và Hòn Đá Phù Thủy",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780590353427-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Harry%20Potter%20V%C3%A0%20H%C3%B2n%20%C4%90%C3%A1%20Ph%C3%B9%20Th%E1%BB%A7y",
+      "author": "J.K. Rowling",
+      "category": "Thiếu nhi",
+      "publisher": "Scholastic",
+      "year": "1998",
+      "quantity": 12,
+      "shelfLocation": "Kệ M1",
+      "description": "Tập đầu tiên trong hành trình phép thuật của Harry Potter."
+    },
+    {
+      "id": 47,
+      "title": "Alice Ở Xứ Sở Thần Tiên",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9780147515872-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fce7f3/9d174d?text=Alice%20%E1%BB%9E%20X%E1%BB%A9%20S%E1%BB%9F%20Th%E1%BA%A7n%20Ti%C3%AAn",
+      "author": "Lewis Carroll",
+      "category": "Thiếu nhi",
+      "publisher": "Puffin Classics",
+      "year": "2015",
+      "quantity": 8,
+      "shelfLocation": "Kệ M1",
+      "description": "Cuộc phiêu lưu kỳ ảo của Alice trong thế giới lạ lùng."
+    },
+    {
+      "id": 48,
+      "title": "Không Bao Giờ Là Thất Bại",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9786041111424-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/dcfce7/166534?text=Kh%C3%B4ng%20Bao%20Gi%E1%BB%9D%20L%C3%A0%20Th%E1%BA%A5t%20B%E1%BA%A1i",
+      "author": "Chung Ju-yung",
+      "category": "Tự truyện",
+      "publisher": "NXB Trẻ",
+      "year": "2018",
+      "quantity": 5,
+      "shelfLocation": "Kệ B1",
+      "description": "Câu chuyện lập nghiệp và ý chí vượt khó của nhà sáng lập Hyundai."
+    },
+    {
+      "id": 49,
+      "title": "Steve Jobs",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9781451648539-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/e0f2fe/0f766e?text=Steve%20Jobs",
+      "author": "Walter Isaacson",
+      "category": "Tự truyện",
+      "publisher": "Simon & Schuster",
+      "year": "2011",
+      "quantity": 6,
+      "shelfLocation": "Kệ B1",
+      "description": "Tiểu sử về Steve Jobs, Apple và tư duy sáng tạo sản phẩm."
+    },
+    {
+      "id": 50,
+      "title": "Totto-Chan Bên Cửa Sổ",
+      "imageUrl": "https://covers.openlibrary.org/b/isbn/9784770020673-L.jpg?default=false",
+      "fallbackImageUrl": "https://placehold.co/320x460/fef3c7/92400e?text=Totto-Chan%20B%C3%AAn%20C%E1%BB%ADa%20S%E1%BB%95",
+      "author": "Kuroyanagi Tetsuko",
+      "category": "Thiếu nhi",
+      "publisher": "Kodansha",
+      "year": "1996",
+      "quantity": 9,
+      "shelfLocation": "Kệ M2",
+      "description": "Câu chuyện ấm áp về giáo dục, tuổi thơ và sự tôn trọng khác biệt."
     }
   ],
   "readers": [
@@ -209,6 +703,270 @@
       "name": "Anh Anh",
       "email": "buidanganh0303@gmail.com",
       "phone": "0965447886"
+    },
+    {
+      "id": 7,
+      "name": "Nguyễn Văn A",
+      "email": "a@gmail.com",
+      "phone": "0924904455"
+    },
+    {
+      "id": 8,
+      "name": "Nguyen Minh Anh",
+      "email": "nguyen.minh.anh8@example.com",
+      "phone": "0930000008"
+    },
+    {
+      "id": 9,
+      "name": "Tran Hoang Bao",
+      "email": "tran.hoang.bao9@example.com",
+      "phone": "0930000009"
+    },
+    {
+      "id": 10,
+      "name": "Le Gia Han",
+      "email": "le.gia.han10@example.com",
+      "phone": "0930000010"
+    },
+    {
+      "id": 11,
+      "name": "Pham Quang Huy",
+      "email": "pham.quang.huy11@example.com",
+      "phone": "0930000011"
+    },
+    {
+      "id": 12,
+      "name": "Hoang Thu Ha",
+      "email": "hoang.thu.ha12@example.com",
+      "phone": "0930000012"
+    },
+    {
+      "id": 13,
+      "name": "Dang Tuan Kiet",
+      "email": "dang.tuan.kiet13@example.com",
+      "phone": "0930000013"
+    },
+    {
+      "id": 14,
+      "name": "Bui Khanh Linh",
+      "email": "bui.khanh.linh14@example.com",
+      "phone": "0930000014"
+    },
+    {
+      "id": 15,
+      "name": "Do Bao Long",
+      "email": "do.bao.long15@example.com",
+      "phone": "0930000015"
+    },
+    {
+      "id": 16,
+      "name": "Vo Ngoc Mai",
+      "email": "vo.ngoc.mai16@example.com",
+      "phone": "0930000016"
+    },
+    {
+      "id": 17,
+      "name": "Phan Minh Quan",
+      "email": "phan.minh.quan17@example.com",
+      "phone": "0930000017"
+    },
+    {
+      "id": 18,
+      "name": "Huynh Thanh Tam",
+      "email": "huynh.thanh.tam18@example.com",
+      "phone": "0930000018"
+    },
+    {
+      "id": 19,
+      "name": "Ngo Phuong Thao",
+      "email": "ngo.phuong.thao19@example.com",
+      "phone": "0930000019"
+    },
+    {
+      "id": 20,
+      "name": "Duong Anh Thu",
+      "email": "duong.anh.thu20@example.com",
+      "phone": "0930000020"
+    },
+    {
+      "id": 21,
+      "name": "Ly Hai Nam",
+      "email": "ly.hai.nam21@example.com",
+      "phone": "0930000021"
+    },
+    {
+      "id": 22,
+      "name": "Mai Duc Anh",
+      "email": "mai.duc.anh22@example.com",
+      "phone": "0930000022"
+    },
+    {
+      "id": 23,
+      "name": "Truong Nhat Minh",
+      "email": "truong.nhat.minh23@example.com",
+      "phone": "0930000023"
+    },
+    {
+      "id": 24,
+      "name": "Dinh Bao Ngoc",
+      "email": "dinh.bao.ngoc24@example.com",
+      "phone": "0930000024"
+    },
+    {
+      "id": 25,
+      "name": "Cao Thanh Phong",
+      "email": "cao.thanh.phong25@example.com",
+      "phone": "0930000025"
+    },
+    {
+      "id": 26,
+      "name": "Lam Hoai An",
+      "email": "lam.hoai.an26@example.com",
+      "phone": "0930000026"
+    },
+    {
+      "id": 27,
+      "name": "To Minh Chau",
+      "email": "to.minh.chau27@example.com",
+      "phone": "0930000027"
+    },
+    {
+      "id": 28,
+      "name": "Vu Khanh Duy",
+      "email": "vu.khanh.duy28@example.com",
+      "phone": "0930000028"
+    },
+    {
+      "id": 29,
+      "name": "Ta Lan Huong",
+      "email": "ta.lan.huong29@example.com",
+      "phone": "0930000029"
+    },
+    {
+      "id": 30,
+      "name": "Trinh Gia Bao",
+      "email": "trinh.gia.bao30@example.com",
+      "phone": "0930000030"
+    },
+    {
+      "id": 31,
+      "name": "Luong Ha My",
+      "email": "luong.ha.my31@example.com",
+      "phone": "0930000031"
+    },
+    {
+      "id": 32,
+      "name": "Chu Quoc Viet",
+      "email": "chu.quoc.viet32@example.com",
+      "phone": "0930000032"
+    },
+    {
+      "id": 33,
+      "name": "Nguyen Hoai Nam",
+      "email": "nguyen.hoai.nam33@example.com",
+      "phone": "0930000033"
+    },
+    {
+      "id": 34,
+      "name": "Tran Nhu Y",
+      "email": "tran.nhu.y34@example.com",
+      "phone": "0930000034"
+    },
+    {
+      "id": 35,
+      "name": "Le Tien Dat",
+      "email": "le.tien.dat35@example.com",
+      "phone": "0930000035"
+    },
+    {
+      "id": 36,
+      "name": "Pham Bao Chau",
+      "email": "pham.bao.chau36@example.com",
+      "phone": "0930000036"
+    },
+    {
+      "id": 37,
+      "name": "Hoang Minh Khoi",
+      "email": "hoang.minh.khoi37@example.com",
+      "phone": "0930000037"
+    },
+    {
+      "id": 38,
+      "name": "Dang Ngoc Han",
+      "email": "dang.ngoc.han38@example.com",
+      "phone": "0930000038"
+    },
+    {
+      "id": 39,
+      "name": "Bui Quynh Anh",
+      "email": "bui.quynh.anh39@example.com",
+      "phone": "0930000039"
+    },
+    {
+      "id": 40,
+      "name": "Do Thanh Tung",
+      "email": "do.thanh.tung40@example.com",
+      "phone": "0930000040"
+    },
+    {
+      "id": 41,
+      "name": "Vo Minh Tri",
+      "email": "vo.minh.tri41@example.com",
+      "phone": "0930000041"
+    },
+    {
+      "id": 42,
+      "name": "Phan Ngoc Diep",
+      "email": "phan.ngoc.diep42@example.com",
+      "phone": "0930000042"
+    },
+    {
+      "id": 43,
+      "name": "Huynh Quang Vinh",
+      "email": "huynh.quang.vinh43@example.com",
+      "phone": "0930000043"
+    },
+    {
+      "id": 44,
+      "name": "Ngo Minh Thu",
+      "email": "ngo.minh.thu44@example.com",
+      "phone": "0930000044"
+    },
+    {
+      "id": 45,
+      "name": "Duong Gia Huy",
+      "email": "duong.gia.huy45@example.com",
+      "phone": "0930000045"
+    },
+    {
+      "id": 46,
+      "name": "Ly Bao Tran",
+      "email": "ly.bao.tran46@example.com",
+      "phone": "0930000046"
+    },
+    {
+      "id": 47,
+      "name": "Mai Thanh Lam",
+      "email": "mai.thanh.lam47@example.com",
+      "phone": "0930000047"
+    },
+    {
+      "id": 48,
+      "name": "Truong Phuong Linh",
+      "email": "truong.phuong.linh48@example.com",
+      "phone": "0930000048"
+    },
+    {
+      "id": 49,
+      "name": "Dinh Nhat Long",
+      "email": "dinh.nhat.long49@example.com",
+      "phone": "0930000049"
+    },
+    {
+      "id": 50,
+      "name": "Cao Gia Khang",
+      "email": "cao.gia.khang50@example.com",
+      "phone": "0930000050"
     }
   ],
   "loans": [
@@ -217,7 +975,7 @@
       "readerId": 1,
       "bookId": 2,
       "borrowedDate": "2026-05-10",
-      "dueDate": "2026-05-31",
+      "dueDate": "2026-06-07",
       "returnedDate": null,
       "status": "borrowed"
     },
@@ -253,9 +1011,74 @@
       "readerId": 4,
       "bookId": 11,
       "borrowedDate": "2026-05-28",
-      "dueDate": "2026-06-11",
+      "dueDate": "2026-06-18",
       "returnedDate": null,
       "status": "borrowed"
     }
-  ]
+  ],
+  "activities": [
+    {
+      "id": 1,
+      "type": "system",
+      "message": "Khoi tao du lieu thu vien mau.",
+      "actor": "He thong",
+      "createdAt": "2026-05-10T00:00:00.000Z",
+      "metadata": {}
+    }
+  ],
+  "catalog": {
+    "categories": [
+      "Địa lý",
+      "Học hành",
+      "Khoa học",
+      "Kinh tế",
+      "Kỹ năng sống",
+      "Lịch sử",
+      "Tâm linh",
+      "Thiếu nhi",
+      "Tình yêu",
+      "Truyện tranh",
+      "Tự truyện",
+      "Văn học nước ngoài",
+      "Văn học Việt Nam"
+    ],
+    "publishers": [
+      "Atria Books",
+      "Avery",
+      "Bantam",
+      "CreateSpace",
+      "DK Children",
+      "Dutton Books",
+      "Farrar, Straus and Giroux",
+      "Free Press",
+      "Grand Central Publishing",
+      "Harper",
+      "HarperOne",
+      "Harriman House",
+      "Harvard University Press",
+      "Kodansha",
+      "Little, Brown",
+      "Mariner Books",
+      "NXB Khoa Học Xã Hội",
+      "NXB Kim Đồng",
+      "NXB Phụ Nữ Việt Nam",
+      "NXB Thế Giới",
+      "NXB Tổng Hợp TP.HCM",
+      "NXB Trẻ",
+      "NXB Văn Học",
+      "Oxford University Press",
+      "Penguin Classics",
+      "Plata Publishing",
+      "Portfolio",
+      "Puffin Classics",
+      "Scholastic",
+      "Scribner",
+      "Shogakukan",
+      "Signet",
+      "Simon & Schuster",
+      "TarcherPerigee",
+      "Vintage",
+      "VIZ Media"
+    ]
+  }
 }

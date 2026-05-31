@@ -4,7 +4,7 @@ const { readData, writeData } = require("./database");
 
 const PORT = Number(process.env.PORT || 4000);
 const MAX_ACTIVE_LOANS_PER_READER = 5;
-const DAILY_OVERDUE_FINE = 5000;
+const DAILY_OVERDUE_FINE = 20000;
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -68,6 +68,7 @@ function publicUser(user) {
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    status: user.status || "active",
   };
 }
 
@@ -119,6 +120,27 @@ function getReaderForUser(data, user) {
   );
 }
 
+function getActorLabel(data, req) {
+  const user = getRequestUser(data, req);
+  if (!user) return "He thong";
+  return user.fullName || user.email || `User #${user.id}`;
+}
+
+function addActivity(data, req, type, message, metadata = {}) {
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  const activity = {
+    id: nextId(activities),
+    type,
+    message,
+    actor: getActorLabel(data, req),
+    createdAt: new Date().toISOString(),
+    metadata,
+  };
+
+  data.activities = [activity, ...activities].slice(0, 300);
+  return activity;
+}
+
 function requireReaderForUser(data, req, res) {
   const user = getRequestUser(data, req);
   const reader = getReaderForUser(data, user);
@@ -152,20 +174,71 @@ function activeLoanCount(loans, bookId) {
   return loans.filter((loan) => loan.bookId === bookId && loan.status !== "returned").length;
 }
 
+function getBookAverageRating(data, bookId) {
+  const reviews = (data.reviews || []).filter((review) => review.bookId === bookId);
+  if (reviews.length === 0) return { averageRating: 0, reviewCount: 0 };
+
+  const total = reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0);
+  return {
+    averageRating: Math.round((total / reviews.length) * 10) / 10,
+    reviewCount: reviews.length,
+  };
+}
+
+function decorateReservations(data) {
+  return (data.reservations || []).map((reservation) => {
+    const reader = data.readers.find((item) => item.id === reservation.readerId);
+    const book = data.books.find((item) => item.id === reservation.bookId);
+
+    return {
+      ...reservation,
+      readerName: reader?.name || "Khong ro doc gia",
+      readerEmail: reader?.email || "",
+      bookTitle: book?.title || "Khong ro sach",
+      availableQuantity: book ? Math.max(0, Number(book.quantity || 0) - activeLoanCount(data.loans, book.id)) : 0,
+    };
+  });
+}
+
+function decorateReviews(data) {
+  return (data.reviews || []).map((review) => {
+    const reader = data.readers.find((item) => item.id === review.readerId);
+    const book = data.books.find((item) => item.id === review.bookId);
+
+    return {
+      ...review,
+      readerName: reader?.name || "Khong ro doc gia",
+      bookTitle: book?.title || "Khong ro sach",
+    };
+  });
+}
+
 function decorateBooks(data) {
   return data.books.map((book) => ({
     ...book,
+    isbn: book.isbn || "",
+    condition: book.condition || "good",
+    ...getBookAverageRating(data, book.id),
     availableQuantity: Math.max(0, Number(book.quantity) - activeLoanCount(data.loans, book.id)),
   }));
 }
 
 function decorateReaders(data) {
-  return data.readers.map((reader) => ({
-    ...reader,
-    booksBorrowed: data.loans.filter(
-      (loan) => loan.readerId === reader.id && loan.status !== "returned"
-    ).length,
-  }));
+  return data.readers.map((reader) => {
+    const user =
+      (reader.userId && data.users.find((item) => item.id === reader.userId)) ||
+      data.users.find((item) => item.email.toLowerCase() === reader.email.toLowerCase());
+
+    return {
+      ...reader,
+      userId: user?.id || reader.userId || null,
+      accountStatus: user?.status || "active",
+      hasAccount: Boolean(user),
+      booksBorrowed: data.loans.filter(
+        (loan) => loan.readerId === reader.id && loan.status !== "returned"
+      ).length,
+    };
+  });
 }
 
 function getLoanStatus(loan) {
@@ -203,6 +276,9 @@ function decorateLoans(data) {
       bookTitle: book?.title || "Khong ro sach",
       lateDays,
       fineAmount: lateDays * DAILY_OVERDUE_FINE,
+      fineStatus: loan.fineStatus || (lateDays > 0 ? "unpaid" : "none"),
+      finePaidDate: loan.finePaidDate || null,
+      fineHandledBy: loan.fineHandledBy || "",
     };
   });
 }
@@ -231,6 +307,10 @@ function validateBook(input) {
       publisher: String(input.publisher || "").trim(),
       year: input.year === undefined || input.year === null ? "" : String(input.year).trim(),
       quantity,
+      isbn: String(input.isbn || "").trim(),
+      condition: ["good", "damaged", "lost", "repair"].includes(String(input.condition || "good"))
+        ? String(input.condition || "good")
+        : "good",
       shelfLocation: String(input.shelfLocation || "").trim(),
       description: String(input.description || "").trim(),
     },
@@ -292,6 +372,11 @@ async function handleAuth(req, res, pathname) {
       return;
     }
 
+    if ((user.status || "active") === "locked") {
+      sendJson(res, 403, { error: "Tai khoan dang bi khoa. Vui long lien he quan tri vien." });
+      return;
+    }
+
     sendJson(res, 200, publicUserWithReader(data, user));
     return;
   }
@@ -327,6 +412,10 @@ async function handleAuth(req, res, pathname) {
       phone: String(body.phone || "").trim(),
       userId: user.id,
     });
+    addActivity(data, req, "reader.created", `Dang ky doc gia moi: ${user.fullName}.`, {
+      userId: user.id,
+      email: user.email,
+    });
     await writeData(data);
     sendJson(res, 201, publicUserWithReader(data, user));
     return;
@@ -357,6 +446,11 @@ async function handleBooks(req, res, pathname) {
 
     const createdBook = { id: nextId(data.books), ...book };
     data.books.push(createdBook);
+    addActivity(data, req, "book.created", `Them sach moi: ${createdBook.title}.`, {
+      bookId: createdBook.id,
+      title: createdBook.title,
+      after: createdBook,
+    });
     await writeData(data);
     sendJson(res, 201, { ...createdBook, availableQuantity: createdBook.quantity });
     return;
@@ -383,6 +477,9 @@ async function handleBooks(req, res, pathname) {
       createdBooks.push({ ...createdBook, availableQuantity: createdBook.quantity });
     }
 
+    addActivity(data, req, "book.bulk_created", `Nhap nhanh ${createdBooks.length} sach.`, {
+      count: createdBooks.length,
+    });
     await writeData(data);
     sendJson(res, 201, createdBooks);
     return;
@@ -415,7 +512,14 @@ async function handleBooks(req, res, pathname) {
       return;
     }
 
+    const beforeBook = data.books[existingIndex];
     data.books[existingIndex] = { id: bookId, ...book };
+    addActivity(data, req, "book.updated", `Cap nhat sach: ${book.title}.`, {
+      bookId,
+      title: book.title,
+      before: beforeBook,
+      after: data.books[existingIndex],
+    });
     await writeData(data);
     sendJson(res, 200, decorateBooks(data).find((item) => item.id === bookId));
     return;
@@ -435,6 +539,7 @@ async function handleBooks(req, res, pathname) {
     }
 
     const beforeCount = data.books.length;
+    const deletedBook = data.books.find((book) => book.id === bookId);
     data.books = data.books.filter((book) => book.id !== bookId);
 
     if (data.books.length === beforeCount) {
@@ -442,6 +547,11 @@ async function handleBooks(req, res, pathname) {
       return;
     }
 
+    addActivity(data, req, "book.deleted", `Xoa sach: ${deletedBook?.title || `#${bookId}`}.`, {
+      bookId,
+      title: deletedBook?.title || "",
+      before: deletedBook || null,
+    });
     await writeData(data);
     sendNoContent(res);
     return;
@@ -452,6 +562,7 @@ async function handleBooks(req, res, pathname) {
 
 async function handleReaders(req, res, pathname) {
   const data = await readData();
+  const accountMatch = pathname.match(/^\/api\/readers\/([^/]+)\/account$/);
   const loansMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)\/loans$/);
   const idMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)$/);
 
@@ -472,6 +583,52 @@ async function handleReaders(req, res, pathname) {
         readers: [reader],
       })
     );
+    return;
+  }
+
+  if (req.method === "PATCH" && accountMatch) {
+    if (!requireAdmin(req, res)) return;
+
+    const readerId = Number(accountMatch[1]);
+    const reader = data.readers.find((item) => item.id === readerId);
+    if (!reader) {
+      sendJson(res, 404, { error: "Khong tim thay doc gia." });
+      return;
+    }
+
+    const user =
+      (reader.userId && data.users.find((item) => item.id === reader.userId)) ||
+      data.users.find((item) => item.email.toLowerCase() === reader.email.toLowerCase());
+
+    if (!user) {
+      sendJson(res, 400, { error: "Doc gia nay chua co tai khoan dang nhap de khoa/mo." });
+      return;
+    }
+
+    if (user.role === "admin") {
+      sendJson(res, 400, { error: "Khong the khoa tai khoan admin." });
+      return;
+    }
+
+    const body = await parseBody(req);
+    const status = String(body.status || "").trim().toLowerCase();
+    if (!["active", "locked"].includes(status)) {
+      sendJson(res, 400, { error: "Trang thai tai khoan khong hop le." });
+      return;
+    }
+
+    const before = { id: user.id, status: user.status || "active" };
+    user.status = status;
+    addActivity(data, req, status === "locked" ? "reader.locked" : "reader.unlocked", `${status === "locked" ? "Khoa" : "Mo khoa"} tai khoan doc gia: ${reader.name}.`, {
+      readerId: reader.id,
+      readerName: reader.name,
+      userId: user.id,
+      email: user.email,
+      before,
+      after: { id: user.id, status: user.status },
+    });
+    await writeData(data);
+    sendJson(res, 200, decorateReaders(data).find((item) => item.id === readerId));
     return;
   }
 
@@ -527,8 +684,53 @@ async function handleReaders(req, res, pathname) {
 
     const createdReader = { id: nextId(data.readers), ...reader };
     data.readers.push(createdReader);
+    addActivity(data, req, "reader.created", `Them doc gia moi: ${createdReader.name}.`, {
+      readerId: createdReader.id,
+      email: createdReader.email,
+      readerName: createdReader.name,
+      after: createdReader,
+    });
     await writeData(data);
     sendJson(res, 201, { ...createdReader, booksBorrowed: 0 });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/readers/bulk") {
+    if (!requireAdmin(req, res)) return;
+
+    const body = await parseBody(req);
+    if (!Array.isArray(body) || body.length === 0) {
+      sendJson(res, 400, { error: "Vui long gui mot mang doc gia hop le." });
+      return;
+    }
+
+    const createdReaders = [];
+    const seenEmails = new Set(data.readers.map((reader) => reader.email.toLowerCase()));
+
+    for (const item of body) {
+      const { reader, error } = validateReader(item);
+      if (error) {
+        sendJson(res, 400, { error: `Loi du lieu doc gia: ${error}` });
+        return;
+      }
+
+      if (seenEmails.has(reader.email)) {
+        sendJson(res, 409, { error: `Email doc gia da ton tai: ${reader.email}` });
+        return;
+      }
+
+      const createdReader = { id: nextId(data.readers), ...reader };
+      data.readers.push(createdReader);
+      seenEmails.add(reader.email);
+      createdReaders.push({ ...createdReader, booksBorrowed: 0, accountStatus: "active", hasAccount: false });
+    }
+
+    addActivity(data, req, "reader.bulk_created", `Nhap nhanh ${createdReaders.length} doc gia.`, {
+      count: createdReaders.length,
+      after: createdReaders,
+    });
+    await writeData(data);
+    sendJson(res, 201, createdReaders);
     return;
   }
 
@@ -575,6 +777,13 @@ async function handleReaders(req, res, pathname) {
       }
     }
 
+    addActivity(data, req, "reader.updated", `Cap nhat doc gia: ${reader.name}.`, {
+      readerId,
+      email: reader.email,
+      readerName: reader.name,
+      before: currentReader,
+      after: data.readers[existingIndex],
+    });
     await writeData(data);
     sendJson(res, 200, decorateReaders(data).find((item) => item.id === readerId));
     return;
@@ -599,6 +808,7 @@ async function handleReaders(req, res, pathname) {
     }
 
     const beforeCount = data.readers.length;
+    const deletedReader = data.readers.find((reader) => reader.id === readerId);
     data.readers = data.readers.filter((reader) => reader.id !== readerId);
 
     if (data.readers.length === beforeCount) {
@@ -607,6 +817,12 @@ async function handleReaders(req, res, pathname) {
     }
 
     data.loans = data.loans.filter((loan) => loan.readerId !== readerId);
+    addActivity(data, req, "reader.deleted", `Xoa doc gia: ${deletedReader?.name || `#${readerId}`}.`, {
+      readerId,
+      email: deletedReader?.email || "",
+      readerName: deletedReader?.name || "",
+      before: deletedReader || null,
+    });
     await writeData(data);
     sendNoContent(res);
     return;
@@ -619,6 +835,7 @@ async function handleLoans(req, res, pathname) {
   const data = await readData();
   const returnMatch = pathname.match(/^\/api\/loans\/(\d+)\/return$/);
   const extendMatch = pathname.match(/^\/api\/loans\/(\d+)\/extend$/);
+  const fineMatch = pathname.match(/^\/api\/loans\/(\d+)\/fine$/);
 
   if (req.method === "GET" && pathname === "/api/loans") {
     const loans = decorateLoans(data);
@@ -682,6 +899,11 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
+    if (["lost", "repair"].includes(book.condition || "good")) {
+      sendJson(res, 400, { error: "Sach dang o trang thai khong the cho muon." });
+      return;
+    }
+
     const loan = {
       id: nextId(data.loans),
       readerId,
@@ -690,11 +912,62 @@ async function handleLoans(req, res, pathname) {
       dueDate,
       returnedDate: null,
       status: "borrowed",
+      fineStatus: "none",
+      finePaidDate: null,
+      fineHandledBy: "",
     };
 
     data.loans.push(loan);
+    addActivity(data, req, "loan.created", `Tao phieu muon #${loan.id}: ${reader.name} muon ${book.title}.`, {
+      loanId: loan.id,
+      readerId,
+      bookId,
+      dueDate,
+    });
     await writeData(data);
     sendJson(res, 201, decorateLoans(data).find((item) => item.id === loan.id));
+    return;
+  }
+
+  if (req.method === "PATCH" && fineMatch) {
+    if (!requireAdmin(req, res)) return;
+
+    const loanId = Number(fineMatch[1]);
+    const loan = data.loans.find((item) => item.id === loanId);
+    if (!loan) {
+      sendJson(res, 404, { error: "Khong tim thay phieu muon." });
+      return;
+    }
+
+    const body = await parseBody(req);
+    const fineStatus = String(body.fineStatus || "").trim().toLowerCase();
+    if (!["unpaid", "paid", "waived", "none"].includes(fineStatus)) {
+      sendJson(res, 400, { error: "Trang thai tien phat khong hop le." });
+      return;
+    }
+
+    const before = {
+      fineStatus: loan.fineStatus || "none",
+      finePaidDate: loan.finePaidDate || null,
+      fineHandledBy: loan.fineHandledBy || "",
+    };
+    loan.fineStatus = fineStatus;
+    loan.finePaidDate = fineStatus === "paid" ? normalizeDate() : null;
+    loan.fineHandledBy = fineStatus === "paid" || fineStatus === "waived" ? getActorLabel(data, req) : "";
+
+    addActivity(data, req, "loan.fine_updated", `Cap nhat tien phat phieu #${loan.id}: ${fineStatus}.`, {
+      loanId,
+      readerId: loan.readerId,
+      bookId: loan.bookId,
+      before,
+      after: {
+        fineStatus: loan.fineStatus,
+        finePaidDate: loan.finePaidDate,
+        fineHandledBy: loan.fineHandledBy,
+      },
+    });
+    await writeData(data);
+    sendJson(res, 200, decorateLoans(data).find((item) => item.id === loanId));
     return;
   }
 
@@ -736,6 +1009,16 @@ async function handleLoans(req, res, pathname) {
     }
 
     loan.dueDate = dueDate;
+    const reader = data.readers.find((item) => item.id === loan.readerId);
+    const book = data.books.find((item) => item.id === loan.bookId);
+    addActivity(data, req, "loan.extended", `Gia han phieu #${loan.id} den ${dueDate}.`, {
+      loanId,
+      readerId: loan.readerId,
+      readerName: reader?.name || "",
+      bookId: loan.bookId,
+      bookTitle: book?.title || "",
+      dueDate,
+    });
     await writeData(data);
     sendJson(res, 200, decorateLoans(data).find((item) => item.id === loanId));
     return;
@@ -762,6 +1045,16 @@ async function handleLoans(req, res, pathname) {
 
     loan.status = "returned";
     loan.returnedDate = normalizeDate();
+    const reader = data.readers.find((item) => item.id === loan.readerId);
+    const book = data.books.find((item) => item.id === loan.bookId);
+    addActivity(data, req, "loan.returned", `Tra sach phieu #${loan.id}: ${book?.title || "khong ro sach"}.`, {
+      loanId,
+      readerId: loan.readerId,
+      readerName: reader?.name || "",
+      bookId: loan.bookId,
+      bookTitle: book?.title || "",
+      returnedDate: loan.returnedDate,
+    });
     await writeData(data);
     sendJson(res, 200, decorateLoans(data).find((item) => item.id === loanId));
     return;
@@ -774,8 +1067,16 @@ async function handleStats(req, res) {
   const data = await readData();
   const loans = decorateLoans(data);
   const books = decorateBooks(data);
-  const borrowedLoans = loans.filter((loan) => loan.status === "borrowed");
-  const overdueLoans = loans.filter((loan) => loan.status === "overdue");
+  const isAdmin = isAdminRequest(req);
+  const reader = isAdmin ? null : requireReaderForUser(data, req, res);
+
+  if (!isAdmin && !reader) {
+    return;
+  }
+
+  const visibleLoans = isAdmin ? loans : loans.filter((loan) => loan.readerId === reader.id);
+  const borrowedLoans = visibleLoans.filter((loan) => loan.status === "borrowed");
+  const overdueLoans = visibleLoans.filter((loan) => loan.status === "overdue");
   const today = new Date(normalizeDate());
   const dueSoonLimit = new Date(today);
   dueSoonLimit.setDate(dueSoonLimit.getDate() + 3);
@@ -785,19 +1086,61 @@ async function handleStats(req, res) {
       return dueDate >= today && dueDate <= dueSoonLimit;
     })
     .sort((first, second) => new Date(first.dueDate) - new Date(second.dueDate));
-  const loanCountsByBook = data.loans.reduce((counts, loan) => {
+  const loanCountsByBook = visibleLoans.reduce((counts, loan) => {
     counts[loan.bookId] = (counts[loan.bookId] || 0) + 1;
     return counts;
   }, {});
+  const loanCountsByReader = visibleLoans.reduce((counts, loan) => {
+    counts[loan.readerId] = (counts[loan.readerId] || 0) + 1;
+    return counts;
+  }, {});
+  const todayText = normalizeDate();
+  const todayLoans = visibleLoans.filter((loan) => loan.borrowedDate === todayText);
+  const todayReturns = visibleLoans.filter((loan) => loan.returnedDate === todayText);
+  const todayFines = overdueLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0);
+  const monthLabels = [];
+  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  for (let index = 5; index >= 0; index -= 1) {
+    const date = new Date(currentMonth);
+    date.setMonth(currentMonth.getMonth() - index);
+    monthLabels.push(date.toISOString().slice(0, 7));
+  }
+  const monthlyActivity = monthLabels.map((month) => ({
+    month,
+    borrowed: visibleLoans.filter((loan) => String(loan.borrowedDate || "").startsWith(month)).length,
+    returned: visibleLoans.filter((loan) => String(loan.returnedDate || "").startsWith(month)).length,
+  }));
+  const monthlyFines = monthLabels.map((month) => {
+    const paidLoans = visibleLoans.filter(
+      (loan) => loan.fineStatus === "paid" && String(loan.finePaidDate || "").startsWith(month)
+    );
+    const waivedLoans = visibleLoans.filter(
+      (loan) => loan.fineStatus === "waived" && String(loan.finePaidDate || loan.returnedDate || loan.dueDate || "").startsWith(month)
+    );
+    const unpaidLoans = visibleLoans.filter(
+      (loan) => loan.fineAmount > 0 && loan.fineStatus === "unpaid" && String(loan.dueDate || "").startsWith(month)
+    );
+
+    return {
+      month,
+      paid: paidLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
+      unpaid: unpaidLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
+      waived: waivedLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
+    };
+  });
+  const reminders = [...overdueLoans, ...dueSoonLoans]
+    .sort((first, second) => new Date(first.dueDate) - new Date(second.dueDate))
+    .slice(0, 8);
 
   sendJson(res, 200, {
     totalBooks: data.books.reduce((total, book) => total + Number(book.quantity || 0), 0),
-    readers: data.readers.length,
+    readers: isAdmin ? data.readers.length : 1,
     borrowed: borrowedLoans.length,
     overdue: overdueLoans.length,
     dueSoon: dueSoonLoans.length,
     totalFines: overdueLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
     availableBooks: books.reduce((total, book) => total + Number(book.availableQuantity || 0), 0),
+    missingImageBooks: books.filter((book) => !book.imageUrl).length,
     lowStockBooks: books
       .filter((book) => Number(book.availableQuantity || 0) <= 2)
       .sort((first, second) => Number(first.availableQuantity || 0) - Number(second.availableQuantity || 0))
@@ -812,12 +1155,276 @@ async function handleStats(req, res) {
       .filter((book) => book.borrowedCount > 0)
       .sort((first, second) => second.borrowedCount - first.borrowedCount)
       .slice(0, 5),
-    recentLoans: loans
+    topReaders: data.readers
+      .map((reader) => ({
+        id: reader.id,
+        name: reader.name,
+        email: reader.email,
+        borrowedCount: loanCountsByReader[reader.id] || 0,
+      }))
+      .filter((item) => item.borrowedCount > 0)
+      .sort((first, second) => second.borrowedCount - first.borrowedCount)
+      .slice(0, 5),
+    todayActivity: {
+      borrowed: todayLoans.length,
+      returned: todayReturns.length,
+      fines: todayFines,
+    },
+    fineSummary: {
+      unpaid: visibleLoans.filter((loan) => loan.fineAmount > 0 && loan.fineStatus === "unpaid").length,
+      paid: visibleLoans.filter((loan) => loan.fineStatus === "paid").length,
+      waived: visibleLoans.filter((loan) => loan.fineStatus === "waived").length,
+      paidAmount: visibleLoans
+        .filter((loan) => loan.fineStatus === "paid")
+        .reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
+    },
+    monthlyActivity,
+    monthlyFines,
+    reminders,
+    recentLoans: visibleLoans
       .slice()
       .sort((first, second) => second.id - first.id)
       .slice(0, 5),
     dueSoonLoans: dueSoonLoans.slice(0, 5),
   });
+}
+
+async function handleReservations(req, res, pathname) {
+  const data = await readData();
+  const idMatch = pathname.match(/^\/api\/reservations\/(\d+)$/);
+
+  if (req.method === "GET" && pathname === "/api/reservations") {
+    if (isAdminRequest(req)) {
+      sendJson(res, 200, decorateReservations(data).sort((first, second) => second.id - first.id));
+      return;
+    }
+
+    const reader = requireReaderForUser(data, req, res);
+    if (!reader) return;
+
+    sendJson(
+      res,
+      200,
+      decorateReservations(data)
+        .filter((reservation) => reservation.readerId === reader.id)
+        .sort((first, second) => second.id - first.id)
+    );
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/reservations") {
+    const body = await parseBody(req);
+    const bookId = Number(body.bookId);
+    const book = data.books.find((item) => item.id === bookId);
+    if (!book) {
+      sendJson(res, 404, { error: "Khong tim thay sach de dat truoc." });
+      return;
+    }
+
+    const reader = isAdminRequest(req)
+      ? data.readers.find((item) => item.id === Number(body.readerId))
+      : requireReaderForUser(data, req, res);
+    if (!reader) return;
+
+    const exists = (data.reservations || []).some(
+      (item) => item.bookId === bookId && item.readerId === reader.id && item.status === "waiting"
+    );
+    if (exists) {
+      sendJson(res, 409, { error: "Doc gia da dat truoc sach nay." });
+      return;
+    }
+
+    const reservation = {
+      id: nextId(data.reservations || []),
+      readerId: reader.id,
+      bookId,
+      status: "waiting",
+      note: String(body.note || "").trim(),
+      createdAt: new Date().toISOString(),
+      handledAt: null,
+      handledBy: "",
+    };
+    data.reservations = [...(data.reservations || []), reservation];
+    addActivity(data, req, "reservation.created", `Dat truoc sach: ${book.title}.`, {
+      reservationId: reservation.id,
+      readerId: reader.id,
+      readerName: reader.name,
+      bookId,
+      bookTitle: book.title,
+    });
+    await writeData(data);
+    sendJson(res, 201, decorateReservations(data).find((item) => item.id === reservation.id));
+    return;
+  }
+
+  if (req.method === "PATCH" && idMatch) {
+    if (!requireAdmin(req, res)) return;
+
+    const reservation = (data.reservations || []).find((item) => item.id === Number(idMatch[1]));
+    if (!reservation) {
+      sendJson(res, 404, { error: "Khong tim thay phieu dat truoc." });
+      return;
+    }
+
+    const body = await parseBody(req);
+    const status = String(body.status || "").trim().toLowerCase();
+    if (!["waiting", "fulfilled", "cancelled"].includes(status)) {
+      sendJson(res, 400, { error: "Trang thai dat truoc khong hop le." });
+      return;
+    }
+
+    reservation.status = status;
+    reservation.handledAt = status === "waiting" ? null : new Date().toISOString();
+    reservation.handledBy = status === "waiting" ? "" : getActorLabel(data, req);
+    addActivity(data, req, "reservation.updated", `Cap nhat dat truoc #${reservation.id}: ${status}.`, {
+      reservationId: reservation.id,
+      status,
+      readerId: reservation.readerId,
+      bookId: reservation.bookId,
+    });
+    await writeData(data);
+    sendJson(res, 200, decorateReservations(data).find((item) => item.id === reservation.id));
+    return;
+  }
+
+  sendJson(res, 404, { error: "Khong tim thay API dat truoc." });
+}
+
+async function handleReviews(req, res, pathname) {
+  const data = await readData();
+
+  if (req.method === "GET" && pathname === "/api/reviews") {
+    const reviews = decorateReviews(data).sort((first, second) => second.id - first.id);
+    sendJson(res, 200, isAdminRequest(req) ? reviews : reviews.filter((review) => review.status !== "hidden"));
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/reviews") {
+    const body = await parseBody(req);
+    const bookId = Number(body.bookId);
+    const rating = Number(body.rating);
+    const comment = String(body.comment || "").trim();
+    const book = data.books.find((item) => item.id === bookId);
+    if (!book || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+      sendJson(res, 400, { error: "Vui long chon sach va danh gia tu 1 den 5 sao." });
+      return;
+    }
+
+    const reader = requireReaderForUser(data, req, res);
+    if (!reader) return;
+
+    const existingIndex = (data.reviews || []).findIndex(
+      (item) => item.bookId === bookId && item.readerId === reader.id
+    );
+    const review = {
+      id: existingIndex >= 0 ? data.reviews[existingIndex].id : nextId(data.reviews || []),
+      bookId,
+      readerId: reader.id,
+      rating,
+      comment,
+      status: "visible",
+      createdAt: existingIndex >= 0 ? data.reviews[existingIndex].createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (existingIndex >= 0) {
+      data.reviews[existingIndex] = review;
+    } else {
+      data.reviews = [...(data.reviews || []), review];
+    }
+
+    addActivity(data, req, "review.created", `Danh gia sach ${book.title}: ${rating} sao.`, {
+      reviewId: review.id,
+      bookId,
+      bookTitle: book.title,
+      readerId: reader.id,
+      rating,
+    });
+    await writeData(data);
+    sendJson(res, existingIndex >= 0 ? 200 : 201, decorateReviews(data).find((item) => item.id === review.id));
+    return;
+  }
+
+  sendJson(res, 404, { error: "Khong tim thay API danh gia." });
+}
+
+async function handleCatalog(req, res, pathname) {
+  const data = await readData();
+  const valueMatch = pathname.match(/^\/api\/catalog\/(categories|publishers)\/(.+)$/);
+
+  if (req.method === "GET" && pathname === "/api/catalog") {
+    const categories = new Set([...(data.catalog?.categories || []), ...data.books.map((book) => book.category).filter(Boolean)]);
+    const publishers = new Set([...(data.catalog?.publishers || []), ...data.books.map((book) => book.publisher).filter(Boolean)]);
+    sendJson(res, 200, {
+      categories: Array.from(categories).sort(),
+      publishers: Array.from(publishers).sort(),
+    });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/catalog") {
+    if (!requireAdmin(req, res)) return;
+
+    const body = await parseBody(req);
+    const type = String(body.type || "").trim();
+    const name = String(body.name || "").trim();
+    if (!["categories", "publishers"].includes(type) || !name) {
+      sendJson(res, 400, { error: "Vui long nhap loai danh muc va ten hop le." });
+      return;
+    }
+
+    data.catalog = data.catalog || { categories: [], publishers: [] };
+    data.catalog[type] = Array.from(new Set([...(data.catalog[type] || []), name])).sort();
+    addActivity(data, req, "catalog.updated", `Them danh muc ${type}: ${name}.`, { type, name });
+    await writeData(data);
+    sendJson(res, 201, data.catalog);
+    return;
+  }
+
+  if (req.method === "DELETE" && valueMatch) {
+    if (!requireAdmin(req, res)) return;
+
+    const type = valueMatch[1];
+    const name = decodeURIComponent(valueMatch[2]);
+    data.catalog = data.catalog || { categories: [], publishers: [] };
+    data.catalog[type] = (data.catalog[type] || []).filter((item) => item !== name);
+    addActivity(data, req, "catalog.updated", `Xoa danh muc ${type}: ${name}.`, { type, name });
+    await writeData(data);
+    sendJson(res, 200, data.catalog);
+    return;
+  }
+
+  sendJson(res, 404, { error: "Khong tim thay API danh muc." });
+}
+
+async function handleActivities(req, res, url) {
+  const data = await readData();
+
+  if (!requireAdmin(req, res)) return;
+
+  if (req.method === "DELETE") {
+    const beforeCount = Array.isArray(data.activities) ? data.activities.length : 0;
+    const olderThan = url.searchParams.get("olderThan");
+
+    if (olderThan) {
+      const cutoff = new Date(`${olderThan}T23:59:59`);
+      data.activities = (data.activities || []).filter(
+        (activity) => new Date(activity.createdAt) > cutoff
+      );
+    } else {
+      data.activities = [];
+    }
+
+    await writeData(data);
+    sendJson(res, 200, {
+      deleted: beforeCount - data.activities.length,
+      remaining: data.activities.length,
+    });
+    return;
+  }
+
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  sendJson(res, 200, activities.slice(0, 300));
 }
 
 async function handleRequest(req, res) {
@@ -860,8 +1467,28 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (pathname.startsWith("/api/reservations")) {
+      await handleReservations(req, res, pathname);
+      return;
+    }
+
+    if (pathname.startsWith("/api/reviews")) {
+      await handleReviews(req, res, pathname);
+      return;
+    }
+
+    if (pathname.startsWith("/api/catalog")) {
+      await handleCatalog(req, res, pathname);
+      return;
+    }
+
     if (req.method === "GET" && pathname === "/api/stats") {
       await handleStats(req, res);
+      return;
+    }
+
+    if ((req.method === "GET" || req.method === "DELETE") && pathname === "/api/activities") {
+      await handleActivities(req, res, url);
       return;
     }
 

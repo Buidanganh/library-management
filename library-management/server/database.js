@@ -14,6 +14,13 @@ const defaultData = {
       passwordHash: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
       role: "admin",
     },
+    {
+      id: 2,
+      fullName: "Bui Dang Anh",
+      email: "buidanganh@gmail.com",
+      passwordHash: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      role: "user",
+    },
   ],
   books: [
     {
@@ -191,6 +198,13 @@ const defaultData = {
       name: "Le Minh Chau",
       email: "chau@example.com",
       phone: "0901000003"
+    },
+    {
+      id: 4,
+      name: "Bui Dang Anh",
+      email: "buidanganh@gmail.com",
+      phone: "0901000004",
+      userId: 2
     }
   ],
   loans: [
@@ -202,6 +216,22 @@ const defaultData = {
       dueDate: "2026-05-24",
       returnedDate: null,
       status: "borrowed"
+    }
+  ],
+  reservations: [],
+  reviews: [],
+  catalog: {
+    categories: [],
+    publishers: [],
+  },
+  activities: [
+    {
+      id: 1,
+      type: "system",
+      message: "Khoi tao du lieu thu vien mau.",
+      actor: "He thong",
+      createdAt: "2026-05-10T00:00:00.000Z",
+      metadata: {}
     }
   ]
 };
@@ -219,12 +249,23 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function parseJsonFile(raw) {
+  return JSON.parse(raw.replace(/^\uFEFF/, ""));
+}
+
 function withDefaults(data) {
   return {
     users: Array.isArray(data.users) && data.users.length > 0 ? data.users : clone(defaultData.users),
     books: Array.isArray(data.books) ? data.books : clone(defaultData.books),
     readers: Array.isArray(data.readers) ? data.readers : clone(defaultData.readers),
     loans: Array.isArray(data.loans) ? data.loans : clone(defaultData.loans),
+    reservations: Array.isArray(data.reservations) ? data.reservations : clone(defaultData.reservations),
+    reviews: Array.isArray(data.reviews) ? data.reviews : clone(defaultData.reviews),
+    catalog: {
+      categories: Array.isArray(data.catalog?.categories) ? data.catalog.categories : clone(defaultData.catalog.categories),
+      publishers: Array.isArray(data.catalog?.publishers) ? data.catalog.publishers : clone(defaultData.catalog.publishers),
+    },
+    activities: Array.isArray(data.activities) ? data.activities : clone(defaultData.activities),
   };
 }
 
@@ -232,7 +273,7 @@ async function ensureDatabase() {
   if (!(await fileExists(DB_FILE))) {
     const oldDataFile = path.join(__dirname, "data.json");
     if (await fileExists(oldDataFile)) {
-      const oldData = JSON.parse(await fs.readFile(oldDataFile, "utf8"));
+      const oldData = parseJsonFile(await fs.readFile(oldDataFile, "utf8"));
       await writeData(withDefaults(oldData));
       return;
     }
@@ -244,7 +285,7 @@ async function ensureDatabase() {
 async function readData() {
   await ensureDatabase();
   const raw = await fs.readFile(DB_FILE, "utf8");
-  return withDefaults(JSON.parse(raw));
+  return withDefaults(parseJsonFile(raw));
 }
 
 async function writeData(data) {

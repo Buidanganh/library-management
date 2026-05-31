@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import BookTable from "../components/BookTable";
-import { getBooks } from "../services/api";
+import { getBooks, getCatalog } from "../services/api";
 
 const emptyForm = {
   title: "",
@@ -10,6 +10,8 @@ const emptyForm = {
   publisher: "",
   year: "",
   quantity: "",
+  isbn: "",
+  condition: "good",
   shelfLocation: "",
   description: "",
 };
@@ -18,6 +20,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   const [formData, setFormData] = useState(emptyForm);
   const [editingBookId, setEditingBookId] = useState(null);
   const [books, setBooks] = useState([]);
+  const [catalog, setCatalog] = useState({ categories: [], publishers: [] });
   const [loadingBooks, setLoadingBooks] = useState(true);
   const [booksError, setBooksError] = useState("");
 
@@ -39,8 +42,9 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
     setBooksError("");
 
     try {
-      const data = await getBooks();
+      const [data, catalogData] = await Promise.all([getBooks(), getCatalog()]);
       setBooks(data);
+      setCatalog(catalogData);
     } catch (err) {
       setBooksError(err.message || "Không thể tải danh sách sách.");
     } finally {
@@ -63,6 +67,8 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
         publisher: editingBook.publisher || "",
         year: editingBook.year || "",
         quantity: editingBook.quantity || "",
+        isbn: editingBook.isbn || "",
+        condition: editingBook.condition || "good",
         shelfLocation: editingBook.shelfLocation || "",
         description: editingBook.description || "",
       });
@@ -89,6 +95,8 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
         publisher: formData.publisher,
         year: formData.year,
         quantity: Number(formData.quantity),
+        isbn: formData.isbn,
+        condition: formData.condition,
         shelfLocation: formData.shelfLocation,
         description: formData.description,
       });
@@ -110,6 +118,8 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
       publisher: book.publisher || "",
       year: book.year || "",
       quantity: book.quantity || "",
+      isbn: book.isbn || "",
+      condition: book.condition || "good",
       shelfLocation: book.shelfLocation || "",
       description: book.description || "",
     });
@@ -123,7 +133,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   };
 
   return (
-    <div>
+    <div className="page-shell book-create-page">
       <div className="page-title row-between">
         <div>
           <h2>{editingBookId ? "Chỉnh sửa sách" : "Thêm sách mới"}</h2>
@@ -184,10 +194,16 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
               <input
                 type="text"
                 name="category"
+                list="book-category-options"
                 placeholder="Ví dụ: Lập trình"
                 value={formData.category}
                 onChange={handleChange}
               />
+              <datalist id="book-category-options">
+                {catalog.categories.map((category) => (
+                  <option key={category} value={category} />
+                ))}
+              </datalist>
             </div>
 
             <div className="form-group">
@@ -195,10 +211,16 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
               <input
                 type="text"
                 name="publisher"
+                list="book-publisher-options"
                 placeholder="Ví dụ: Prentice Hall"
                 value={formData.publisher}
                 onChange={handleChange}
               />
+              <datalist id="book-publisher-options">
+                {catalog.publishers.map((publisher) => (
+                  <option key={publisher} value={publisher} />
+                ))}
+              </datalist>
             </div>
 
             <div className="form-group">
@@ -222,6 +244,27 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
                 value={formData.quantity}
                 onChange={handleChange}
               />
+            </div>
+
+            <div className="form-group">
+              <label>ISBN</label>
+              <input
+                type="text"
+                name="isbn"
+                placeholder="Ví dụ: 9780132350884"
+                value={formData.isbn}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Tình trạng bản sách</label>
+              <select name="condition" value={formData.condition} onChange={handleChange}>
+                <option value="good">Tốt</option>
+                <option value="damaged">Hỏng nhẹ</option>
+                <option value="repair">Đang sửa</option>
+                <option value="lost">Mất</option>
+              </select>
             </div>
 
             <div className="form-group">

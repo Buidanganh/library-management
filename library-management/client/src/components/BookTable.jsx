@@ -1,16 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function BookCover({ book }) {
-  const [failed, setFailed] = useState(false);
-  const hasImage = Boolean(book.imageUrl) && !failed;
+  const [imageSrc, setImageSrc] = useState(book.imageUrl || book.fallbackImageUrl || "");
+  const hasImage = Boolean(imageSrc);
+
+  useEffect(() => {
+    setImageSrc(book.imageUrl || book.fallbackImageUrl || "");
+  }, [book.imageUrl, book.fallbackImageUrl]);
 
   if (hasImage) {
     return (
       <img
         className="book-cover"
-        src={book.imageUrl}
+        src={imageSrc}
         alt={`Bìa sách ${book.title}`}
-        onError={() => setFailed(true)}
+        onError={() => {
+          if (imageSrc !== book.fallbackImageUrl && book.fallbackImageUrl) {
+            setImageSrc(book.fallbackImageUrl);
+            return;
+          }
+
+          setImageSrc("");
+        }}
       />
     );
   }
@@ -29,9 +40,20 @@ function BookInfo({ book }) {
       <div>
         <strong>{book.title}</strong>
         <span>{book.publisher || "Chưa có NXB"}</span>
+        {book.isbn && <span>ISBN {book.isbn}</span>}
       </div>
     </div>
   );
+}
+
+function getConditionLabel(condition) {
+  const labels = {
+    good: "Tốt",
+    damaged: "Hư hỏng nhẹ",
+    repair: "Đang sửa",
+    lost: "Mất sách",
+  };
+  return labels[condition || "good"] || labels.good;
 }
 
 function BookTable({ books, onEditBook, onDeleteBook, loading, error }) {
@@ -61,6 +83,7 @@ function BookTable({ books, onEditBook, onDeleteBook, loading, error }) {
               <th>Tên sách và ảnh</th>
               <th>Tác giả</th>
               <th>Thể loại</th>
+              <th>Tình trạng</th>
               <th>Số lượng</th>
               <th>Còn lại</th>
               {(onEditBook || onDeleteBook) && <th>Hành động</th>}
@@ -75,6 +98,7 @@ function BookTable({ books, onEditBook, onDeleteBook, loading, error }) {
                 </td>
                 <td>{book.author}</td>
                 <td>{book.category}</td>
+                <td>{getConditionLabel(book.condition)}</td>
                 <td>{book.quantity}</td>
                 <td>{book.availableQuantity ?? book.quantity}</td>
                 {(onEditBook || onDeleteBook) && (

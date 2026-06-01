@@ -1,9 +1,11 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const DB_FILE = process.env.VERCEL
-  ? path.join("/tmp", "library.db.json")
-  : path.join(__dirname, "library.db.json");
+const DB_FILE = path.join(__dirname, "library.db.json");
+const REMOTE_DB_KEY = process.env.REMOTE_DB_KEY || "library-management:db";
+const KV_REST_API_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const USE_REMOTE_DB = Boolean(KV_REST_API_URL && KV_REST_API_TOKEN);
 
 const defaultData = {
   users: [
@@ -245,12 +247,48 @@ async function fileExists(filePath) {
   }
 }
 
+async function kvCommand(command, ...args) {
+  if (typeof fetch !== "function") {
+    throw new Error("Node.js runtime khong ho tro fetch de ket noi remote database.");
+  }
+
+  const response = await fetch(KV_REST_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${KV_REST_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([command, ...args]),
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(`Remote database error ${response.status}: ${message || response.statusText}`);
+  }
+
+  const payload = await response.json();
+  return payload.result;
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
 function parseJsonFile(raw) {
   return JSON.parse(raw.replace(/^\uFEFF/, ""));
+}
+
+async function loadSeedData() {
+  if (await fileExists(DB_FILE)) {
+    return withDefaults(parseJsonFile(await fs.readFile(DB_FILE, "utf8")));
+  }
+
+  const oldDataFile = path.join(__dirname, "data.json");
+  if (await fileExists(oldDataFile)) {
+    return withDefaults(parseJsonFile(await fs.readFile(oldDataFile, "utf8")));
+  }
+
+  return clone(defaultData);
 }
 
 function withDefaults(data) {
@@ -270,6 +308,14 @@ function withDefaults(data) {
 }
 
 async function ensureDatabase() {
+  if (USE_REMOTE_DB) {
+    const existing = await kvCommand("GET", REMOTE_DB_KEY);
+    if (!existing) {
+      await kvCommand("SET", REMOTE_DB_KEY, JSON.stringify(await loadSeedData()));
+    }
+    return;
+  }
+
   if (!(await fileExists(DB_FILE))) {
     const oldDataFile = path.join(__dirname, "data.json");
     if (await fileExists(oldDataFile)) {
@@ -284,11 +330,25 @@ async function ensureDatabase() {
 
 async function readData() {
   await ensureDatabase();
+
+  if (USE_REMOTE_DB) {
+    const raw = await kvCommand("GET", REMOTE_DB_KEY);
+    if (!raw) {
+      return withDefaults(await loadSeedData());
+    }
+    return withDefaults(typeof raw === "string" ? parseJsonFile(raw) : raw);
+  }
+
   const raw = await fs.readFile(DB_FILE, "utf8");
   return withDefaults(parseJsonFile(raw));
 }
 
 async function writeData(data) {
+  if (USE_REMOTE_DB) {
+    await kvCommand("SET", REMOTE_DB_KEY, JSON.stringify(withDefaults(data)));
+    return;
+  }
+
   await fs.writeFile(DB_FILE, JSON.stringify(withDefaults(data), null, 2) + "\n", "utf8");
 }
 

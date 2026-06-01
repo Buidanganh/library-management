@@ -665,6 +665,146 @@
       "quantity": 9,
       "shelfLocation": "Kệ M2",
       "description": "Câu chuyện ấm áp về giáo dục, tuổi thơ và sự tôn trọng khác biệt."
+    },
+    {
+      "id": 51,
+      "title": "Clean Code",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2008",
+      "quantity": 8,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Hướng dẫn viết mã sạch và dễ bảo trì."
+    },
+    {
+      "id": 52,
+      "title": "Design Patterns",
+      "imageUrl": "",
+      "author": "Erich Gamma",
+      "category": "Lập trình",
+      "publisher": "Addison-Wesley",
+      "year": "1994",
+      "quantity": 5,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A2",
+      "description": "Các mẫu thiết kế phần mềm phổ biến."
+    },
+    {
+      "id": 53,
+      "title": "JavaScript: The Good Parts",
+      "imageUrl": "",
+      "author": "Douglas Crockford",
+      "category": "Lập trình",
+      "publisher": "O'Reilly Media",
+      "year": "2008",
+      "quantity": 6,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ B3",
+      "description": "Tổng hợp những phần tốt nhất của JavaScript."
+    },
+    {
+      "id": 54,
+      "title": "Deep Learning",
+      "imageUrl": "",
+      "author": "Ian Goodfellow",
+      "category": "AI/ML",
+      "publisher": "MIT Press",
+      "year": "2016",
+      "quantity": 4,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ C1",
+      "description": "Giới thiệu các thuật toán học sâu."
+    },
+    {
+      "id": 55,
+      "title": "Clean Architecture",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2017",
+      "quantity": 7,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Nguyên lý xây dựng kiến trúc phần mềm bền vững."
+    },
+    {
+      "id": 56,
+      "title": "Clean Code",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2008",
+      "quantity": 8,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Hướng dẫn viết mã sạch và dễ bảo trì."
+    },
+    {
+      "id": 57,
+      "title": "Design Patterns",
+      "imageUrl": "",
+      "author": "Erich Gamma",
+      "category": "Lập trình",
+      "publisher": "Addison-Wesley",
+      "year": "1994",
+      "quantity": 5,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A2",
+      "description": "Các mẫu thiết kế phần mềm phổ biến."
+    },
+    {
+      "id": 58,
+      "title": "JavaScript: The Good Parts",
+      "imageUrl": "",
+      "author": "Douglas Crockford",
+      "category": "Lập trình",
+      "publisher": "O'Reilly Media",
+      "year": "2008",
+      "quantity": 6,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ B3",
+      "description": "Tổng hợp những phần tốt nhất của JavaScript."
+    },
+    {
+      "id": 59,
+      "title": "Deep Learning",
+      "imageUrl": "",
+      "author": "Ian Goodfellow",
+      "category": "AI/ML",
+      "publisher": "MIT Press",
+      "year": "2016",
+      "quantity": 4,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ C1",
+      "description": "Giới thiệu các thuật toán học sâu."
+    },
+    {
+      "id": 60,
+      "title": "Clean Architecture",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2017",
+      "quantity": 7,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Nguyên lý xây dựng kiến trúc phần mềm bền vững."
     }
   ],
   "readers": [
@@ -967,6 +1107,12 @@
       "name": "Cao Gia Khang",
       "email": "cao.gia.khang50@example.com",
       "phone": "0930000050"
+    },
+    {
+      "id": 51,
+      "name": "Đỗ Tùng Dương",
+      "email": "dotungduong@gmail.com",
+      "phone": "0911558746"
     }
   ],
   "loans": [
@@ -1014,18 +1160,34 @@
       "dueDate": "2026-06-18",
       "returnedDate": null,
       "status": "borrowed"
-    }
-  ],
-  "activities": [
+    },
     {
-      "id": 1,
-      "type": "system",
-      "message": "Khoi tao du lieu thu vien mau.",
-      "actor": "He thong",
-      "createdAt": "2026-05-10T00:00:00.000Z",
-      "metadata": {}
+      "id": 6,
+      "readerId": 51,
+      "bookId": 13,
+      "borrowedDate": "2026-06-01",
+      "dueDate": "2026-07-01",
+      "returnedDate": null,
+      "status": "borrowed",
+      "fineStatus": "none",
+      "finePaidDate": null,
+      "fineHandledBy": ""
+    },
+    {
+      "id": 7,
+      "readerId": 5,
+      "bookId": 17,
+      "borrowedDate": "2026-06-01",
+      "dueDate": "2026-07-01",
+      "returnedDate": null,
+      "status": "borrowed",
+      "fineStatus": "none",
+      "finePaidDate": null,
+      "fineHandledBy": ""
     }
   ],
+  "reservations": [],
+  "reviews": [],
   "catalog": {
     "categories": [
       "Địa lý",
@@ -1080,5 +1242,79 @@
       "Vintage",
       "VIZ Media"
     ]
-  }
+  },
+  "activities": [
+    {
+      "id": 6,
+      "type": "loan.created",
+      "message": "Tao phieu muon #7: Đỗ Nguyễn Thùy Dương muon Cho Tôi Xin Một Vé Đi Tuổi Thơ.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-01T06:19:51.467Z",
+      "metadata": {
+        "loanId": 7,
+        "readerId": 5,
+        "bookId": 17,
+        "dueDate": "2026-07-01"
+      }
+    },
+    {
+      "id": 5,
+      "type": "loan.created",
+      "message": "Tao phieu muon #6: Đỗ Tùng Dương muon One Piece Tập 1.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-01T06:19:29.534Z",
+      "metadata": {
+        "loanId": 6,
+        "readerId": 51,
+        "bookId": 13,
+        "dueDate": "2026-07-01"
+      }
+    },
+    {
+      "id": 4,
+      "type": "book.bulk_created",
+      "message": "Nhap nhanh 5 sach.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-01T05:41:44.398Z",
+      "metadata": {
+        "count": 5
+      }
+    },
+    {
+      "id": 3,
+      "type": "book.bulk_created",
+      "message": "Nhap nhanh 5 sach.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-01T04:39:09.267Z",
+      "metadata": {
+        "count": 5
+      }
+    },
+    {
+      "id": 2,
+      "type": "reader.created",
+      "message": "Them doc gia moi: Đỗ Tùng Dương.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-01T04:34:04.564Z",
+      "metadata": {
+        "readerId": 51,
+        "email": "dotungduong@gmail.com",
+        "readerName": "Đỗ Tùng Dương",
+        "after": {
+          "id": 51,
+          "name": "Đỗ Tùng Dương",
+          "email": "dotungduong@gmail.com",
+          "phone": "0911558746"
+        }
+      }
+    },
+    {
+      "id": 1,
+      "type": "system",
+      "message": "Khoi tao du lieu thu vien mau.",
+      "actor": "He thong",
+      "createdAt": "2026-05-10T00:00:00.000Z",
+      "metadata": {}
+    }
+  ]
 }

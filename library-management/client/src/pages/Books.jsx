@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  BookOpen,
+  FileJson,
+  FileSpreadsheet,
+  ImageOff,
+  PackageCheck,
+  Plus,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { createReservation, getBooks, getLoans } from "../services/api";
 
 function getAvailableQuantity(book) {
@@ -439,6 +450,37 @@ function Books({
     Boolean(imageFilter) ||
     sortMode !== "title-asc";
 
+  const bookKpis = [
+    {
+      label: "Tổng đầu sách",
+      value: bookSummary.total,
+      helper: "Danh mục đang quản lý",
+      tone: "primary",
+      icon: BookOpen,
+    },
+    {
+      label: "Có thể mượn",
+      value: bookSummary.available,
+      helper: "Còn hàng và sẵn sàng",
+      tone: "success",
+      icon: PackageCheck,
+    },
+    {
+      label: "Sắp hết / hết",
+      value: bookSummary.low + bookSummary.out,
+      helper: `${bookSummary.low} sắp hết, ${bookSummary.out} hết`,
+      tone: bookSummary.low + bookSummary.out > 0 ? "warning" : "success",
+      icon: AlertTriangle,
+    },
+    {
+      label: "Thiếu ảnh bìa",
+      value: bookSummary.missingImage,
+      helper: `${bookSummary.withImage} sách đã có ảnh`,
+      tone: bookSummary.missingImage > 0 ? "danger" : "success",
+      icon: ImageOff,
+    },
+  ];
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -626,15 +668,25 @@ function Books({
 
   return (
     <div className="page-shell books-page">
-      <div className="page-title row-between">
+      <div className="page-title row-between books-hero">
         <div>
+          <span className="page-eyebrow">
+            <Sparkles size={16} />
+            Kho sách thư viện
+          </span>
           <h2>Quản lý sách</h2>
           <p>Danh sách sách gồm tên sách, ảnh bìa và tình trạng tồn kho hiện tại.</p>
+          <div className="page-hero-meta">
+            <span>{filteredBooks.length} sách đang hiển thị</span>
+            <span>{categories.length} thể loại</span>
+            <span>{publishers.length} nhà xuất bản</span>
+          </div>
         </div>
 
         {canManage && (
-          <button className="primary-button" onClick={handleAddClick}>
-            Thêm sách
+          <button className="primary-button hero-action-button" onClick={handleAddClick}>
+            <Plus size={18} />
+            <span>Thêm sách</span>
           </button>
         )}
       </div>
@@ -648,17 +700,38 @@ function Books({
         </div>
       ) : (
         <>
-          <div className="table-card" style={{ marginBottom: 24 }}>
+          <div className="inventory-metric-grid">
+            {bookKpis.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div className={`inventory-metric-card ${item.tone}`} key={item.label}>
+                  <span className="inventory-metric-icon">
+                    <Icon size={20} />
+                  </span>
+                  <div>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <small>{item.helper}</small>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="table-card inventory-filter-card" style={{ marginBottom: 24 }}>
             <div className="table-card-header row-between">
               <div>
                 <h3>Tồn kho sách</h3>
               </div>
-              <div className="loan-summary">
+              <div className="loan-summary inventory-export-actions">
                 <button className="secondary-button" type="button" onClick={downloadFilteredBooksJson}>
-                  Xuất JSON
+                  <FileJson size={16} />
+                  <span>Xuất JSON</span>
                 </button>
                 <button className="secondary-button" type="button" onClick={downloadFilteredBooksCsv} style={{ marginLeft: 8 }}>
-                  Xuất CSV
+                  <FileSpreadsheet size={16} />
+                  <span>Xuất CSV</span>
                 </button>
                 <div className="summary-values">
                   <span>Tổng đầu sách: {bookSummary.total}</span>
@@ -721,6 +794,9 @@ function Books({
             <div className="filters-row">
               <div className="search-bar">
                 <label>Tìm kiếm</label>
+                <span className="search-field-icon">
+                  <Search size={17} />
+                </span>
                 <input
                   type="search"
                   value={searchQuery}
@@ -1013,7 +1089,7 @@ function Books({
             </div>
           )}
 
-          <div className="table-card">
+          <div className="table-card books-table-card">
             <div className="table-responsive">
               <table className="table table-sm">
                 <thead>

@@ -1,4 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BookCopy,
+  BookOpen,
+  CalendarClock,
+  CheckCircle2,
+  CircleDollarSign,
+  Clock3,
+  LibraryBig,
+  PackagePlus,
+  RefreshCw,
+  Sparkles,
+  Upload,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { read, utils } from "xlsx";
 import { getStats, createBook, createReader, createBooksBulk } from "../services/api";
 
@@ -576,15 +593,15 @@ function Dashboard({
   };
 
   const stats = [
-    { label: "Tổng số sách", value: summary.totalBooks, helper: "Đầu sách trong kho", tone: "primary" },
-    { label: "Sách còn lại", value: summary.availableBooks, helper: "Có thể cho mượn", tone: "success" },
-    { label: isAdmin ? "Độc giả" : "Hồ sơ độc giả", value: summary.readers, helper: "Hồ sơ đang quản lý", tone: "info" },
-    { label: "Đang mượn", value: summary.borrowed, helper: "Phiếu còn hạn", tone: "warning" },
-    { label: "Sắp đến hạn", value: summary.dueSoon, helper: "Trong 3 ngày tới", tone: "warning" },
-    { label: "Quá hạn", value: summary.overdue, helper: "Cần xử lý", tone: summary.overdue > 0 ? "danger" : "success" },
-    { label: "Phạt dự kiến", value: formatCurrency(summary.totalFines), helper: "20.000đ/ngày trễ", tone: "danger" },
-    { label: "Phạt đã thu", value: formatCurrency(summary.fineSummary.paidAmount), helper: `${summary.fineSummary.paid} phiếu`, tone: "success" },
-    { label: "Phạt chưa thu", value: summary.fineSummary.unpaid, helper: "Phiếu còn nợ phạt", tone: summary.fineSummary.unpaid > 0 ? "danger" : "success" },
+    { label: "Tổng số sách", value: summary.totalBooks, helper: "Đầu sách trong kho", tone: "primary", icon: LibraryBig },
+    { label: "Sách còn lại", value: summary.availableBooks, helper: "Có thể cho mượn", tone: "success", icon: BookOpen },
+    { label: isAdmin ? "Độc giả" : "Hồ sơ độc giả", value: summary.readers, helper: "Hồ sơ đang quản lý", tone: "info", icon: Users },
+    { label: "Đang mượn", value: summary.borrowed, helper: "Phiếu còn hạn", tone: "warning", icon: BookCopy },
+    { label: "Sắp đến hạn", value: summary.dueSoon, helper: "Trong 3 ngày tới", tone: "warning", icon: CalendarClock },
+    { label: "Quá hạn", value: summary.overdue, helper: "Cần xử lý", tone: summary.overdue > 0 ? "danger" : "success", icon: AlertTriangle },
+    { label: "Phạt dự kiến", value: formatCurrency(summary.totalFines), helper: "20.000đ/ngày trễ", tone: "danger", icon: CircleDollarSign },
+    { label: "Phạt đã thu", value: formatCurrency(summary.fineSummary.paidAmount), helper: `${summary.fineSummary.paid} phiếu`, tone: "success", icon: CheckCircle2 },
+    { label: "Phạt chưa thu", value: summary.fineSummary.unpaid, helper: "Phiếu còn nợ phạt", tone: summary.fineSummary.unpaid > 0 ? "danger" : "success", icon: Clock3 },
   ];
 
   const quickActions = [
@@ -593,6 +610,7 @@ function Dashboard({
       detail: "Tra cứu tồn kho, lọc trạng thái và xem lịch sử mượn từng sách.",
       meta: `${summary.availableBooks} sách còn sẵn`,
       tone: "primary",
+      icon: BookOpen,
       onClick: onNavigateToBooks,
     },
     isAdmin && {
@@ -600,6 +618,7 @@ function Dashboard({
       detail: "Tạo đầu sách mới hoặc nhập nhanh bằng form quản trị.",
       meta: "Quản trị",
       tone: "success",
+      icon: PackagePlus,
       onClick: onAddBook,
     },
     isAdmin && {
@@ -607,6 +626,7 @@ function Dashboard({
       detail: "Quản lý hồ sơ, trạng thái mượn, quá hạn và tiền phạt.",
       meta: `${summary.readers} hồ sơ`,
       tone: "info",
+      icon: Users,
       onClick: onNavigateToReaders || onAddReader,
     },
     {
@@ -614,6 +634,7 @@ function Dashboard({
       detail: "Lập phiếu mượn, trả sách, gia hạn và tính phạt 20.000đ/ngày.",
       meta: `${dashboardHealth.activeLoans} phiếu hoạt động`,
       tone: "warning",
+      icon: BookCopy,
       onClick: onNavigateToBorrow,
     },
     {
@@ -621,6 +642,7 @@ function Dashboard({
       detail: "Theo dõi các phiếu trễ hạn và tổng tiền phạt dự kiến.",
       meta: `${summary.overdue} quá hạn`,
       tone: summary.overdue > 0 ? "danger" : "muted",
+      icon: AlertTriangle,
       onClick: onNavigateToOverdue,
     },
   ].filter(Boolean);
@@ -644,39 +666,54 @@ function Dashboard({
 
   return (
     <div className="page-shell dashboard-page">
-      <div className="d-flex align-items-start justify-content-between mb-3">
+      <div className="dashboard-hero d-flex align-items-start justify-content-between mb-3">
         <div className="page-title">
-        <h2 className="h4">Tổng quan</h2>
+          <span className="dashboard-eyebrow">
+            <Sparkles size={16} />
+            Bảng điều khiển thư viện
+          </span>
+          <h2 className="h4">Tổng quan</h2>
           <p className="text-muted">Theo dõi nhanh hoạt động, tồn kho và tình trạng mượn trả của thư viện.</p>
+          <div className="dashboard-hero-meta">
+            <span>{dashboardHealth.activeLoans} phiếu đang hoạt động</span>
+            <span>{summary.availableBooks} sách có thể mượn</span>
+            <span>{formatCurrency(summary.totalFines)} phạt dự kiến</span>
+          </div>
         </div>
 
-        <div className="btn-group">
+        <div className="dashboard-toolbar btn-group">
           {isAdmin && (
             <>
               <button className="btn btn-primary btn-sm" onClick={openBookModal}>
-                Thêm sách
+                <PackagePlus size={16} />
+                <span>Thêm sách</span>
               </button>
               <button className="btn btn-outline-primary btn-sm" onClick={openReaderModal}>
-                Thêm độc giả
+                <UserPlus size={16} />
+                <span>Thêm độc giả</span>
               </button>
               <button className="btn btn-outline-info btn-sm" onClick={openBulkModal}>
-                Thêm nhiều sách
+                <Upload size={16} />
+                <span>Nhập sách</span>
               </button>
               <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={importSampleBooks}
                 disabled={bulkImporting}
               >
-                {bulkImporting ? "Đang thêm..." : "Thêm sách mẫu"}
+                <Sparkles size={16} />
+                <span>{bulkImporting ? "Đang thêm..." : "Sách mẫu"}</span>
               </button>
             </>
           )}
 
           <button className="btn btn-outline-success btn-sm" onClick={onNavigateToBorrow}>
-            Mượn sách
+            <BookCopy size={16} />
+            <span>Mượn sách</span>
           </button>
           <button className="btn btn-outline-secondary btn-sm" onClick={refreshStats} disabled={loadingStats}>
-            {loadingStats ? "Đang tải..." : "Làm mới"}
+            <RefreshCw size={16} />
+            <span>{loadingStats ? "Đang tải..." : "Làm mới"}</span>
           </button>
         </div>
       </div>
@@ -684,29 +721,39 @@ function Dashboard({
       {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="row g-3 mb-4">
-        {stats.map((item) => (
-          <div className="col-6 col-md-4 col-lg-3" key={item.label}>
-            <div className={`card h-100 shadow-sm dashboard-stat-card ${item.tone}`}>
-              <div className="card-body">
-                <p className="mb-1 text-muted small">{item.label}</p>
-                <h3 className="mb-0">{item.value}</h3>
-                <span>{item.helper}</span>
+        {stats.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <div className="col-6 col-md-4 col-lg-3" key={item.label}>
+              <div className={`card h-100 shadow-sm dashboard-stat-card ${item.tone}`}>
+                <div className="card-body">
+                  <span className="dashboard-stat-icon">
+                    <Icon size={20} />
+                  </span>
+                  <p className="mb-1 text-muted small">{item.label}</p>
+                  <h3 className="mb-0">{item.value}</h3>
+                  <span>{item.helper}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="dashboard-alert-strip mb-4">
         <button type="button" onClick={onNavigateToOverdue} className={summary.overdue > 0 ? "danger" : "success"}>
+          <AlertTriangle size={22} />
           <strong>{summary.overdue}</strong>
           <span>Phiếu quá hạn</span>
         </button>
         <button type="button" onClick={onNavigateToBooks} className={summary.lowStockBooks.length > 0 ? "warning" : "success"}>
+          <PackagePlus size={22} />
           <strong>{summary.lowStockBooks.length}</strong>
           <span>Sách sắp hết</span>
         </button>
         <button type="button" onClick={onNavigateToBooks} className={summary.missingImageBooks > 0 ? "warning" : "success"}>
+          <BookOpen size={22} />
           <strong>{summary.missingImageBooks}</strong>
           <span>Sách thiếu ảnh</span>
         </button>
@@ -721,21 +768,30 @@ function Dashboard({
         </div>
 
         <div className="feature-action-grid">
-          {quickActions.map((action) => (
-            <button
-              className={`feature-action-card ${action.tone}`}
-              key={action.title}
-              type="button"
-              onClick={action.onClick}
-            >
-              <span className="feature-action-icon">{action.title.charAt(0)}</span>
-              <span className="feature-action-content">
-                <strong>{action.title}</strong>
-                <span>{action.detail}</span>
-                <small>{action.meta}</small>
-              </span>
-            </button>
-          ))}
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+
+            return (
+              <button
+                className={`feature-action-card ${action.tone}`}
+                key={action.title}
+                type="button"
+                onClick={action.onClick}
+              >
+                <span className="feature-action-icon">
+                  <Icon size={20} />
+                </span>
+                <span className="feature-action-content">
+                  <strong>{action.title}</strong>
+                  <span>{action.detail}</span>
+                  <small>
+                    {action.meta}
+                    <ArrowRight size={14} />
+                  </small>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft, BookPlus, Save, Sparkles } from "lucide-react";
 import BookTable from "../components/BookTable";
 import { getBooks, getCatalog } from "../services/api";
 
@@ -134,18 +135,28 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
 
   return (
     <div className="page-shell book-create-page">
-      <div className="page-title row-between">
+      <div className="page-title row-between page-hero book-create-hero">
         <div>
+          <span className="page-eyebrow">
+            <Sparkles size={16} />
+            Biên mục đầu sách
+          </span>
           <h2>{editingBookId ? "Chỉnh sửa sách" : "Thêm sách mới"}</h2>
           <p>Nhập tên sách, ảnh bìa và thông tin chi tiết để quản lý kho sách.</p>
+          <div className="page-hero-meta">
+            <span>{books.length} sách hiện có</span>
+            <span>{catalog.categories.length} thể loại</span>
+            <span>{catalog.publishers.length} nhà xuất bản</span>
+          </div>
         </div>
 
-        <button className="secondary-button" type="button" onClick={onCancel}>
-          Quay lại danh sách
+        <button className="secondary-button hero-secondary-button" type="button" onClick={onCancel}>
+          <ArrowLeft size={17} />
+          <span>Quay lại danh sách</span>
         </button>
       </div>
 
-      <form className="form-card" onSubmit={handleSubmit}>
+      <form className="form-card book-editor-card" onSubmit={handleSubmit}>
         <div className="book-form-layout">
           <div className="book-cover-preview">
             {formData.imageUrl ? (
@@ -293,7 +304,8 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
 
         <div className="form-actions">
           <button className="primary-button" type="submit">
-            {editingBookId ? "Cập nhật sách" : "Lưu sách"}
+            {editingBookId ? <Save size={18} /> : <BookPlus size={18} />}
+            <span>{editingBookId ? "Cập nhật sách" : "Lưu sách"}</span>
           </button>
           <button className="secondary-button" type="button" onClick={editingBookId ? resetForm : onCancel}>
             {editingBookId ? "Hủy chỉnh sửa" : "Hủy"}

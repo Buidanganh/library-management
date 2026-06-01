@@ -1,4 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  History,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { utils, writeFile } from "xlsx";
 import { deleteActivities, getActivities } from "../services/api";
 
@@ -331,15 +343,25 @@ function ActivityLog() {
 
   return (
     <div className="page-shell activity-page">
-      <div className="page-title row-between">
+      <div className="page-title row-between page-hero activity-hero">
         <div>
+          <span className="page-eyebrow">
+            <Sparkles size={16} />
+            Theo dõi vận hành
+          </span>
           <h2>Nhật ký hoạt động</h2>
           <p>Theo dõi thao tác quản trị, mượn/trả sách và các thay đổi dữ liệu gần đây.</p>
+          <div className="page-hero-meta">
+            <span>{summary.total} hoạt động</span>
+            <span>{summary.actorCount} người thực hiện</span>
+            <span>Mới nhất: {summary.latestTime}</span>
+          </div>
         </div>
 
-        <div className="button-group">
+        <div className="button-group page-hero-actions">
           <button className="secondary-button" type="button" onClick={loadActivities} disabled={loading}>
-            Làm mới
+            <RefreshCw size={16} />
+            <span>Làm mới</span>
           </button>
           <button
             className="secondary-button"
@@ -347,7 +369,8 @@ function ActivityLog() {
             onClick={() => exportActivitiesJson(filteredActivities)}
             disabled={filteredActivities.length === 0}
           >
-            Xuất JSON
+            <FileJson size={16} />
+            <span>Xuất JSON</span>
           </button>
           <button
             className="secondary-button"
@@ -355,7 +378,8 @@ function ActivityLog() {
             onClick={() => exportActivitiesXlsx(filteredActivities)}
             disabled={filteredActivities.length === 0}
           >
-            Xuất Excel
+            <FileSpreadsheet size={16} />
+            <span>Xuất Excel</span>
           </button>
           <button
             className="secondary-button"
@@ -363,10 +387,12 @@ function ActivityLog() {
             onClick={() => exportActivitiesCsv(filteredActivities)}
             disabled={filteredActivities.length === 0}
           >
-            Xuất CSV
+            <Download size={16} />
+            <span>Xuất CSV</span>
           </button>
           <button className="secondary-button danger-button" type="button" onClick={() => setCleanupModal(true)}>
-            Dọn nhật ký
+            <Trash2 size={16} />
+            <span>Dọn nhật ký</span>
           </button>
         </div>
       </div>
@@ -381,14 +407,17 @@ function ActivityLog() {
           </div>
           <div className="activity-metric-grid">
             <span>
+              <History size={18} />
               <strong>{summary.total}</strong>
               Tổng hoạt động
             </span>
             <span>
+              <Users size={18} />
               <strong>{summary.actorCount}</strong>
               Người thực hiện
             </span>
             <span>
+              <ShieldCheck size={18} />
               <strong>{summary.latestTime}</strong>
               Mới nhất
             </span>
@@ -440,6 +469,9 @@ function ActivityLog() {
         <div className="filters-row">
           <div className="search-bar">
             <label>Tìm kiếm</label>
+            <span className="search-field-icon">
+              <Search size={17} />
+            </span>
             <input
               type="search"
               value={searchQuery}

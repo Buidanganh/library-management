@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  BookCopy,
+  CalendarClock,
+  CheckCircle2,
+  CircleDollarSign,
+  FileJson,
+  FileSpreadsheet,
+  RefreshCw,
+  Search,
+  Sparkles,
+} from "lucide-react";
+import {
   borrowBook,
   extendLoan,
   getBooks,
@@ -425,28 +436,92 @@ function Borrow({ isAdmin = false }) {
     !selectedReaderReachedLimit &&
     !selectedReaderAlreadyBorrowingBook;
 
+  const loanKpis = [
+    {
+      label: "Phiếu hoạt động",
+      value: loanSummary.active,
+      helper: `${loanSummary.borrowed} đang mượn, ${loanSummary.overdue} quá hạn`,
+      tone: loanSummary.overdue > 0 ? "warning" : "primary",
+      icon: BookCopy,
+    },
+    {
+      label: "Sắp đến hạn",
+      value: loanSummary.dueSoon,
+      helper: "Cần nhắc trong 3 ngày",
+      tone: loanSummary.dueSoon > 0 ? "warning" : "success",
+      icon: CalendarClock,
+    },
+    {
+      label: "Đã trả",
+      value: loanSummary.returned,
+      helper: "Phiếu đã hoàn tất",
+      tone: "success",
+      icon: CheckCircle2,
+    },
+    {
+      label: "Phạt dự kiến",
+      value: formatCurrency(loanSummary.totalFines),
+      helper: `${formatCurrency(20000)}/ngày trễ`,
+      tone: loanSummary.totalFines > 0 ? "danger" : "success",
+      icon: CircleDollarSign,
+    },
+  ];
+
   return (
     <div className="page-shell borrow-page">
-      <div className="page-title row-between">
+      <div className="page-title row-between borrow-hero">
         <div>
+          <span className="page-eyebrow">
+            <Sparkles size={16} />
+            Điều phối mượn trả
+          </span>
           <h2>Mượn / Trả sách</h2>
           <p>Quản lý phiếu mượn, gia hạn và trả sách trực tiếp với backend.</p>
+          <div className="page-hero-meta">
+            <span>{loanSummary.active} phiếu hoạt động</span>
+            <span>{loanSummary.dueSoon} sắp đến hạn</span>
+            <span>{formatCurrency(loanSummary.totalFines)} phạt dự kiến</span>
+          </div>
         </div>
-        <div className="button-group">
+        <div className="button-group borrow-export-actions">
           <button className="secondary-button" type="button" onClick={() => exportLoansAsJson(filteredLoans)}>
-            Xuất phiếu JSON
+            <FileJson size={16} />
+            <span>Xuất JSON</span>
           </button>
           <button className="secondary-button" type="button" onClick={() => exportLoansAsCsv(filteredLoans)}>
-            Xuất phiếu CSV
+            <FileSpreadsheet size={16} />
+            <span>Xuất CSV</span>
           </button>
         </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
+      <div className="inventory-metric-grid borrow-metric-grid">
+        {loanKpis.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <div className={`inventory-metric-card ${item.tone}`} key={item.label}>
+              <span className="inventory-metric-icon">
+                <Icon size={20} />
+              </span>
+              <div>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.helper}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="borrow-operations-grid">
-        <div className="table-card">
-          <h3>Phiếu mượn mới</h3>
+        <div className="table-card borrow-form-card">
+          <div className="table-card-header">
+            <h3>Phiếu mượn mới</h3>
+            <p>Chọn độc giả, sách còn sẵn và hạn trả để tạo phiếu nhanh.</p>
+          </div>
           <form className="form-grid" onSubmit={handleBorrow}>
             <div className="form-group">
               <label>Độc giả</label>
@@ -516,7 +591,8 @@ function Borrow({ isAdmin = false }) {
 
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={!canSubmitBorrow}>
-                {submitting ? "Đang xử lý..." : "Tạo phiếu mượn"}
+                <BookCopy size={18} />
+                <span>{submitting ? "Đang xử lý..." : "Tạo phiếu mượn"}</span>
               </button>
             </div>
           </form>
@@ -670,6 +746,9 @@ function Borrow({ isAdmin = false }) {
         <div className="filters-row">
           <div className="search-bar">
             <label>Tìm kiếm</label>
+            <span className="search-field-icon">
+              <Search size={17} />
+            </span>
             <input
               type="search"
               value={searchQuery}
@@ -709,7 +788,8 @@ function Borrow({ isAdmin = false }) {
               onClick={resetFilters}
               disabled={!searchQuery.trim() && !statusFilter && !quickFilter}
             >
-              Xóa bộ lọc
+              <RefreshCw size={16} />
+              <span>Xóa bộ lọc</span>
             </button>
           </div>
         </div>

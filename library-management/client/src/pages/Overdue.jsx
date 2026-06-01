@@ -1,4 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CircleDollarSign,
+  FileJson,
+  FileSpreadsheet,
+  Search,
+  Sparkles,
+  TimerReset,
+} from "lucide-react";
 import { extendLoan, getLoans, returnLoan, updateLoanFineStatus } from "../services/api";
 
 const formatCurrency = (value) =>
@@ -155,6 +165,37 @@ function Overdue({ isAdmin = false }) {
     };
   }, [overdueItems, filteredOverdueItems]);
 
+  const overdueKpis = [
+    {
+      label: "Phiếu quá hạn",
+      value: overdueSummary.total,
+      helper: `${overdueSummary.displayed} đang hiển thị`,
+      tone: overdueSummary.total > 0 ? "danger" : "success",
+      icon: AlertTriangle,
+    },
+    {
+      label: "Trễ trung bình",
+      value: `${overdueSummary.avgLateDays} ngày`,
+      helper: `Cao nhất ${overdueSummary.maxLateDays} ngày`,
+      tone: "warning",
+      icon: CalendarClock,
+    },
+    {
+      label: "Phạt dự kiến",
+      value: formatCurrency(overdueSummary.totalFines),
+      helper: `${formatCurrency(20000)}/ngày`,
+      tone: overdueSummary.totalFines > 0 ? "danger" : "success",
+      icon: CircleDollarSign,
+    },
+    {
+      label: "Ưu tiên xử lý",
+      value: overdueSummary.worstItem ? `#${overdueSummary.worstItem.id}` : "-",
+      helper: overdueSummary.worstItem?.readerName || "Không có phiếu trễ",
+      tone: overdueSummary.worstItem ? "danger" : "success",
+      icon: TimerReset,
+    },
+  ];
+
   const handleReturn = async (item) => {
     setReturnModal(item);
   };
@@ -227,17 +268,28 @@ function Overdue({ isAdmin = false }) {
 
   return (
     <div className="page-shell overdue-page">
-      <div className="page-title row-between">
+      <div className="page-title row-between page-hero overdue-hero">
         <div>
+          <span className="page-eyebrow">
+            <Sparkles size={16} />
+            Theo dõi rủi ro trả sách
+          </span>
           <h2>Sách quá hạn</h2>
           <p>Theo dõi phiếu mượn quá hạn, thông tin liên hệ và tiền phạt dự kiến.</p>
+          <div className="page-hero-meta">
+            <span>{overdueSummary.total} phiếu quá hạn</span>
+            <span>{formatCurrency(overdueSummary.totalFines)} phạt dự kiến</span>
+            <span>{overdueSummary.avgLateDays} ngày trễ trung bình</span>
+          </div>
         </div>
-        <div className="button-group">
+        <div className="button-group page-hero-actions">
           <button className="secondary-button" type="button" onClick={() => exportOverdueAsJson(filteredOverdueItems)}>
-            Xuất JSON
+            <FileJson size={16} />
+            <span>Xuất JSON</span>
           </button>
           <button className="secondary-button" type="button" onClick={() => exportOverdueAsCsv(filteredOverdueItems)}>
-            Xuất CSV
+            <FileSpreadsheet size={16} />
+            <span>Xuất CSV</span>
           </button>
         </div>
       </div>
@@ -252,6 +304,25 @@ function Overdue({ isAdmin = false }) {
         </div>
       ) : overdueItems.length > 0 ? (
         <>
+          <div className="inventory-metric-grid overdue-metric-grid">
+            {overdueKpis.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div className={`inventory-metric-card ${item.tone}`} key={item.label}>
+                  <span className="inventory-metric-icon">
+                    <Icon size={20} />
+                  </span>
+                  <div>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <small>{item.helper}</small>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="table-card" style={{ marginBottom: 24 }}>
             <div className="table-card-header row-between">
               <h3>Tổng hợp quá hạn</h3>
@@ -278,6 +349,9 @@ function Overdue({ isAdmin = false }) {
             <div className="filters-row">
               <div className="search-bar">
                 <label>Tìm kiếm</label>
+                <span className="search-field-icon">
+                  <Search size={17} />
+                </span>
                 <input
                   type="search"
                   value={searchQuery}

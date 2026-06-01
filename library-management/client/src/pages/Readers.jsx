@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CircleDollarSign,
+  FileJson,
+  FileSpreadsheet,
+  Search,
+  Sparkles,
+  Upload,
+  UserPlus,
+  Users,
+  UserX,
+} from "lucide-react";
 import { utils, writeFile } from "xlsx";
 import BookTable from "../components/BookTable";
 import {
@@ -325,6 +336,37 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
 
   const selectedReaderRisk = selectedReader ? readerRiskById[selectedReader.id] || {} : {};
 
+  const readerKpis = [
+    {
+      label: "Tổng độc giả",
+      value: readerSummary.total,
+      helper: `${filteredReaders.length} đang hiển thị`,
+      tone: "primary",
+      icon: Users,
+    },
+    {
+      label: "Đang mượn",
+      value: readerSummary.active,
+      helper: `${readerSummary.inactive} chưa mượn`,
+      tone: "success",
+      icon: UserPlus,
+    },
+    {
+      label: "Có quá hạn",
+      value: readerSummary.overdue,
+      helper: "Cần theo dõi",
+      tone: readerSummary.overdue > 0 ? "danger" : "success",
+      icon: UserX,
+    },
+    {
+      label: "Phạt dự kiến",
+      value: formatCurrency(readerSummary.totalFines),
+      helper: `${readerSummary.locked} tài khoản khóa`,
+      tone: readerSummary.totalFines > 0 ? "warning" : "success",
+      icon: CircleDollarSign,
+    },
+  ];
+
   const updateReaderNote = (readerId, note) => {
     setReaderNotes((current) => {
       const next = { ...current, [readerId]: note };
@@ -545,34 +587,67 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
 
   return (
     <div className="page-shell readers-page">
-      <div className="page-title row-between">
+      <div className="page-title row-between page-hero readers-hero">
         <div>
+          <span className="page-eyebrow">
+            <Sparkles size={16} />
+            Hồ sơ độc giả
+          </span>
           <h2>Độc giả</h2>
           <p>Quản lý hồ sơ độc giả, thông tin liên hệ và số sách đang mượn.</p>
+          <div className="page-hero-meta">
+            <span>{readerSummary.total} độc giả</span>
+            <span>{readerSummary.active} đang mượn</span>
+            <span>{readerSummary.overdue} có quá hạn</span>
+          </div>
         </div>
 
-        <div className="button-group">
+        <div className="button-group page-hero-actions">
           <button className="secondary-button" type="button" onClick={() => exportReadersAsJson(readers)}>
-            Xuất JSON
+            <FileJson size={16} />
+            <span>Xuất JSON</span>
           </button>
           <button className="secondary-button" type="button" onClick={() => exportReadersAsXlsx(filteredReaders)}>
-            Xuất Excel
+            <FileSpreadsheet size={16} />
+            <span>Xuất Excel</span>
           </button>
           <button className="secondary-button" type="button" onClick={() => exportReadersAsCsv(readers)}>
-            Xuất CSV
+            <FileSpreadsheet size={16} />
+            <span>Xuất CSV</span>
           </button>
           <button className="secondary-button" type="button" onClick={() => setShowBulkModal(true)}>
-            Nhập độc giả
+            <Upload size={16} />
+            <span>Nhập độc giả</span>
           </button>
           <button className="primary-button" type="button" onClick={() => onNavigateToCreate?.("readers")}>
-            Thêm độc giả
+            <UserPlus size={17} />
+            <span>Thêm độc giả</span>
           </button>
         </div>
       </div>
 
       {errorReaders && <div className="error-message">{errorReaders}</div>}
 
-      <form className="form-card" onSubmit={handleSaveReader}>
+      <div className="inventory-metric-grid readers-metric-grid">
+        {readerKpis.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <div className={`inventory-metric-card ${item.tone}`} key={item.label}>
+              <span className="inventory-metric-icon">
+                <Icon size={20} />
+              </span>
+              <div>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.helper}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <form className="form-card reader-form-card" onSubmit={handleSaveReader}>
         <h3>{editingReaderId ? "Cập nhật độc giả" : "Thêm độc giả mới"}</h3>
         <div className="form-grid">
           <div className="form-group">
@@ -646,9 +721,12 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
           </div>
 
           <div className="filters-row">
-            <div className="search-bar">
-              <label>Tìm kiếm</label>
-              <input
+          <div className="search-bar">
+            <label>Tìm kiếm</label>
+            <span className="search-field-icon">
+              <Search size={17} />
+            </span>
+            <input
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}

@@ -21,12 +21,17 @@ function Sidebar({
   const [menuQuery, setMenuQuery] = useState("");
   const searchInputRef = useRef(null);
   const userRole = user?.role;
+  const canManageLibrary = ["admin", "librarian"].includes(userRole);
+  const canUseMenuItem = (item) =>
+    (!item.adminOnly || canManageLibrary) &&
+    (!item.systemAdminOnly || userRole === "admin") &&
+    (!item.userOnly || !canManageLibrary);
   const userName = user?.fullName ?? "Người dùng";
   const canChangePage = typeof onChangePage === "function";
   const showUserSkeleton = loadingUser || !user;
   const normalizedQuery = menuQuery.trim().toLowerCase();
   const visibleItems = sidebarMenuItems
-    .filter((item) => (!item.adminOnly || userRole === "admin") && (!item.userOnly || userRole !== "admin"))
+    .filter(canUseMenuItem)
     .filter((item) => {
       if (!normalizedQuery) return true;
 
@@ -46,12 +51,12 @@ function Sidebar({
     .filter((page) => page !== currentPage)
     .map((page) => sidebarMenuItems.find((item) => item.id === page))
     .filter(Boolean)
-    .filter((item) => (!item.adminOnly || userRole === "admin") && (!item.userOnly || userRole !== "admin"))
+    .filter(canUseMenuItem)
     .slice(0, 3);
   const favoriteItems = favoritePages
     .map((page) => sidebarMenuItems.find((item) => item.id === page))
     .filter(Boolean)
-    .filter((item) => (!item.adminOnly || userRole === "admin") && (!item.userOnly || userRole !== "admin"));
+    .filter(canUseMenuItem);
   const canToggleFavorite = typeof onToggleFavorite === "function";
 
   const renderMenuButton = (item, options = {}) => {

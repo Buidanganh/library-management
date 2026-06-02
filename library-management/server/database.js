@@ -278,6 +278,18 @@ function parseJsonFile(raw) {
   return JSON.parse(raw.replace(/^\uFEFF/, ""));
 }
 
+function getDefaultReaderProfileImageUrl(reader) {
+  const seed = encodeURIComponent(reader?.name || reader?.email || `reader-${reader?.id || "new"}`);
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}`;
+}
+
+function normalizeReaders(readers) {
+  return readers.map((reader) => ({
+    ...reader,
+    profileImageUrl: reader.profileImageUrl || getDefaultReaderProfileImageUrl(reader),
+  }));
+}
+
 async function loadSeedData() {
   if (await fileExists(DB_FILE)) {
     return withDefaults(parseJsonFile(await fs.readFile(DB_FILE, "utf8")));
@@ -295,7 +307,7 @@ function withDefaults(data) {
   return {
     users: Array.isArray(data.users) && data.users.length > 0 ? data.users : clone(defaultData.users),
     books: Array.isArray(data.books) ? data.books : clone(defaultData.books),
-    readers: Array.isArray(data.readers) ? data.readers : clone(defaultData.readers),
+    readers: normalizeReaders(Array.isArray(data.readers) ? data.readers : clone(defaultData.readers)),
     loans: Array.isArray(data.loans) ? data.loans : clone(defaultData.loans),
     reservations: Array.isArray(data.reservations) ? data.reservations : clone(defaultData.reservations),
     reviews: Array.isArray(data.reviews) ? data.reviews : clone(defaultData.reviews),

@@ -85,7 +85,20 @@ function isAdminRequest(req) {
   return String(req.headers["x-user-role"] || "").toLowerCase() === "admin";
 }
 
+function isStaffRequest(req) {
+  return ["admin", "librarian"].includes(String(req.headers["x-user-role"] || "").toLowerCase());
+}
+
 function requireAdmin(req, res) {
+  if (isStaffRequest(req)) {
+    return true;
+  }
+
+  sendJson(res, 403, { error: "Chi quan tri vien hoac thu thu moi co quyen thuc hien thao tac nay." });
+  return false;
+}
+
+function requireAdminOnly(req, res) {
   if (isAdminRequest(req)) {
     return true;
   }
@@ -118,6 +131,11 @@ function getReaderForUser(data, user) {
     data.readers.find((reader) => reader.email.toLowerCase() === user.email.toLowerCase()) ||
     null
   );
+}
+
+function getDefaultReaderProfileImageUrl(reader) {
+  const seed = encodeURIComponent(reader?.name || reader?.fullName || reader?.email || `reader-${reader?.id || "new"}`);
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}`;
 }
 
 function getActorLabel(data, req) {
@@ -231,7 +249,9 @@ function decorateReaders(data) {
 
     return {
       ...reader,
+      profileImageUrl: reader.profileImageUrl || getDefaultReaderProfileImageUrl(reader),
       userId: user?.id || reader.userId || null,
+      accountRole: user?.role || "member",
       accountStatus: user?.status || "active",
       hasAccount: Boolean(user),
       booksBorrowed: data.loans.filter(
@@ -283,6 +303,62 @@ function decorateLoans(data) {
   });
 }
 
+function buildNotifications(data, req) {
+  const loans = decorateLoans(data);
+  const reservations = decorateReservations(data);
+  const isStaff = isStaffRequest(req);
+  const reader = isStaff ? null : getReaderForUser(data, getRequestUser(data, req));
+  const visibleLoans = isStaff ? loans : loans.filter((loan) => loan.readerId === reader?.id);
+  const visibleReservations = isStaff
+    ? reservations
+    : reservations.filter((reservation) => reservation.readerId === reader?.id);
+  const today = new Date(normalizeDate());
+  const dueSoonLimit = new Date(today);
+  dueSoonLimit.setDate(dueSoonLimit.getDate() + 3);
+
+  const overdueItems = visibleLoans
+    .filter((loan) => loan.status === "overdue")
+    .map((loan) => ({
+      id: `loan-overdue-${loan.id}`,
+      type: "overdue",
+      tone: "danger",
+      title: isStaff ? `${loan.readerName} quá hạn ${loan.lateDays} ngày` : `Sách quá hạn ${loan.lateDays} ngày`,
+      message: `${loan.bookTitle} - hạn trả ${loan.dueDate}.`,
+      target: "borrow",
+      createdAt: loan.dueDate,
+    }));
+
+  const dueSoonItems = visibleLoans
+    .filter((loan) => {
+      if (loan.status !== "borrowed") return false;
+      const dueDate = new Date(loan.dueDate);
+      return dueDate >= today && dueDate <= dueSoonLimit;
+    })
+    .map((loan) => ({
+      id: `loan-due-${loan.id}`,
+      type: "due_soon",
+      tone: "warning",
+      title: isStaff ? `${loan.readerName} sắp đến hạn` : "Sách sắp đến hạn",
+      message: `${loan.bookTitle} - hạn trả ${loan.dueDate}.`,
+      target: "borrow",
+      createdAt: loan.dueDate,
+    }));
+
+  const reservationItems = visibleReservations
+    .filter((reservation) => reservation.status === "waiting" && Number(reservation.availableQuantity || 0) > 0)
+    .map((reservation) => ({
+      id: `reservation-ready-${reservation.id}`,
+      type: "reservation_ready",
+      tone: "success",
+      title: isStaff ? `Có thể xử lý đặt trước #${reservation.id}` : "Sách đặt trước đã sẵn sàng",
+      message: `${reservation.bookTitle} hiện còn ${reservation.availableQuantity} bản.`,
+      target: "borrow",
+      createdAt: reservation.createdAt,
+    }));
+
+  return [...overdueItems, ...dueSoonItems, ...reservationItems].slice(0, 20);
+}
+
 function validateBook(input) {
   const title = String(input.title || "").trim();
   const author = String(input.author || "").trim();
@@ -321,9 +397,20 @@ function validateReader(input) {
   const name = String(input.name || "").trim();
   const email = String(input.email || "").trim().toLowerCase();
   const phone = String(input.phone || "").trim();
+  const profileImageUrl = String(
+    input.profileImageUrl || input.avatarUrl || input.imageUrl || input.photoUrl || ""
+  ).trim();
 
   if (!name || !email || !email.includes("@")) {
     return { error: "Vui long nhap ho ten va email doc gia hop le." };
+  }
+
+  if (!profileImageUrl) {
+    return { error: "Vui long nhap URL anh profile cho doc gia." };
+  }
+
+  if (!/^https?:\/\/.+/i.test(profileImageUrl)) {
+    return { error: "URL anh profile phai bat dau bang http:// hoac https://." };
   }
 
   return {
@@ -331,6 +418,7 @@ function validateReader(input) {
       name,
       email,
       phone,
+      profileImageUrl,
     },
   };
 }
@@ -410,6 +498,7 @@ async function handleAuth(req, res, pathname) {
       name: user.fullName,
       email: user.email,
       phone: String(body.phone || "").trim(),
+      profileImageUrl: getDefaultReaderProfileImageUrl(user),
       userId: user.id,
     });
     addActivity(data, req, "reader.created", `Dang ky doc gia moi: ${user.fullName}.`, {
@@ -567,7 +656,7 @@ async function handleReaders(req, res, pathname) {
   const idMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)$/);
 
   if (req.method === "GET" && pathname === "/api/readers") {
-    if (isAdminRequest(req)) {
+    if (isStaffRequest(req)) {
       sendJson(res, 200, decorateReaders(data));
       return;
     }
@@ -605,27 +694,64 @@ async function handleReaders(req, res, pathname) {
       return;
     }
 
-    if (user.role === "admin") {
-      sendJson(res, 400, { error: "Khong the khoa tai khoan admin." });
-      return;
-    }
-
     const body = await parseBody(req);
-    const status = String(body.status || "").trim().toLowerCase();
-    if (!["active", "locked"].includes(status)) {
+    const status = body.status === undefined ? undefined : String(body.status || "").trim().toLowerCase();
+    const role = body.role === undefined ? undefined : String(body.role || "").trim().toLowerCase();
+
+    if (status !== undefined && !["active", "locked"].includes(status)) {
       sendJson(res, 400, { error: "Trang thai tai khoan khong hop le." });
       return;
     }
 
-    const before = { id: user.id, status: user.status || "active" };
-    user.status = status;
-    addActivity(data, req, status === "locked" ? "reader.locked" : "reader.unlocked", `${status === "locked" ? "Khoa" : "Mo khoa"} tai khoan doc gia: ${reader.name}.`, {
+    if (user.role === "admin" && status === "locked") {
+      sendJson(res, 400, { error: "Khong the khoa tai khoan admin." });
+      return;
+    }
+
+    if (role !== undefined) {
+      if (!requireAdminOnly(req, res)) return;
+
+      if (!["admin", "librarian", "user", "member"].includes(role)) {
+        sendJson(res, 400, { error: "Vai tro tai khoan khong hop le." });
+        return;
+      }
+    }
+
+    if (status === undefined && role === undefined) {
+      sendJson(res, 400, { error: "Vui long gui trang thai hoac vai tro can cap nhat." });
+      return;
+    }
+
+    const before = { id: user.id, status: user.status || "active", role: user.role || "user" };
+
+    if (status !== undefined) {
+      user.status = status;
+    }
+
+    if (role !== undefined) {
+      user.role = role === "member" ? "user" : role;
+    }
+
+    const changedStatus = status !== undefined && before.status !== user.status;
+    const changedRole = role !== undefined && before.role !== user.role;
+    const activityType = changedRole
+      ? "reader.role_updated"
+      : status === "locked"
+      ? "reader.locked"
+      : "reader.unlocked";
+    const activityMessage = changedRole
+      ? `Cap nhat vai tro tai khoan doc gia: ${reader.name} thanh ${user.role}.`
+      : `${status === "locked" ? "Khoa" : "Mo khoa"} tai khoan doc gia: ${reader.name}.`;
+
+    addActivity(data, req, activityType, activityMessage, {
       readerId: reader.id,
       readerName: reader.name,
       userId: user.id,
       email: user.email,
       before,
-      after: { id: user.id, status: user.status },
+      after: { id: user.id, status: user.status || "active", role: user.role || "user" },
+      changedStatus,
+      changedRole,
     });
     await writeData(data);
     sendJson(res, 200, decorateReaders(data).find((item) => item.id === readerId));
@@ -645,7 +771,7 @@ async function handleReaders(req, res, pathname) {
       return;
     }
 
-    if (!isAdminRequest(req)) {
+    if (!isStaffRequest(req)) {
       const currentReader = requireReaderForUser(data, req, res);
       if (!currentReader) return;
 
@@ -807,6 +933,22 @@ async function handleReaders(req, res, pathname) {
       return;
     }
 
+    const hasUnpaidFine = decorateLoans(data).some(
+      (loan) => loan.readerId === readerId && Number(loan.fineAmount || 0) > 0 && loan.fineStatus === "unpaid"
+    );
+    if (hasUnpaidFine) {
+      sendJson(res, 400, { error: "Khong the xoa doc gia con tien phat chua thu." });
+      return;
+    }
+
+    const hasWaitingReservation = (data.reservations || []).some(
+      (reservation) => reservation.readerId === readerId && reservation.status === "waiting"
+    );
+    if (hasWaitingReservation) {
+      sendJson(res, 400, { error: "Khong the xoa doc gia con yeu cau dat truoc dang cho." });
+      return;
+    }
+
     const beforeCount = data.readers.length;
     const deletedReader = data.readers.find((reader) => reader.id === readerId);
     data.readers = data.readers.filter((reader) => reader.id !== readerId);
@@ -840,7 +982,7 @@ async function handleLoans(req, res, pathname) {
   if (req.method === "GET" && pathname === "/api/loans") {
     const loans = decorateLoans(data);
 
-    if (isAdminRequest(req)) {
+    if (isStaffRequest(req)) {
       sendJson(res, 200, loans);
       return;
     }
@@ -854,7 +996,7 @@ async function handleLoans(req, res, pathname) {
 
   if (req.method === "POST" && pathname === "/api/loans") {
     const body = await parseBody(req);
-    const reader = isAdminRequest(req)
+    const reader = isStaffRequest(req)
       ? data.readers.find((item) => item.id === Number(body.readerId))
       : requireReaderForUser(data, req, res);
 
@@ -980,7 +1122,7 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
-    if (!isAdminRequest(req)) {
+    if (!isStaffRequest(req)) {
       const reader = requireReaderForUser(data, req, res);
       if (!reader) return;
 
@@ -1033,7 +1175,7 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
-    if (!isAdminRequest(req)) {
+    if (!isStaffRequest(req)) {
       const reader = requireReaderForUser(data, req, res);
       if (!reader) return;
 
@@ -1067,7 +1209,7 @@ async function handleStats(req, res) {
   const data = await readData();
   const loans = decorateLoans(data);
   const books = decorateBooks(data);
-  const isAdmin = isAdminRequest(req);
+  const isAdmin = isStaffRequest(req);
   const reader = isAdmin ? null : requireReaderForUser(data, req, res);
 
   if (!isAdmin && !reader) {
@@ -1075,8 +1217,12 @@ async function handleStats(req, res) {
   }
 
   const visibleLoans = isAdmin ? loans : loans.filter((loan) => loan.readerId === reader.id);
+  const visibleReservations = isAdmin
+    ? decorateReservations(data)
+    : decorateReservations(data).filter((reservation) => reservation.readerId === reader.id);
   const borrowedLoans = visibleLoans.filter((loan) => loan.status === "borrowed");
   const overdueLoans = visibleLoans.filter((loan) => loan.status === "overdue");
+  const waitingReservations = visibleReservations.filter((reservation) => reservation.status === "waiting");
   const today = new Date(normalizeDate());
   const dueSoonLimit = new Date(today);
   dueSoonLimit.setDate(dueSoonLimit.getDate() + 3);
@@ -1138,6 +1284,7 @@ async function handleStats(req, res) {
     borrowed: borrowedLoans.length,
     overdue: overdueLoans.length,
     dueSoon: dueSoonLoans.length,
+    waitingReservations: waitingReservations.length,
     totalFines: overdueLoans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
     availableBooks: books.reduce((total, book) => total + Number(book.availableQuantity || 0), 0),
     missingImageBooks: books.filter((book) => !book.imageUrl).length,
@@ -1194,7 +1341,7 @@ async function handleReservations(req, res, pathname) {
   const idMatch = pathname.match(/^\/api\/reservations\/(\d+)$/);
 
   if (req.method === "GET" && pathname === "/api/reservations") {
-    if (isAdminRequest(req)) {
+    if (isStaffRequest(req)) {
       sendJson(res, 200, decorateReservations(data).sort((first, second) => second.id - first.id));
       return;
     }
@@ -1221,7 +1368,7 @@ async function handleReservations(req, res, pathname) {
       return;
     }
 
-    const reader = isAdminRequest(req)
+    const reader = isStaffRequest(req)
       ? data.readers.find((item) => item.id === Number(body.readerId))
       : requireReaderForUser(data, req, res);
     if (!reader) return;
@@ -1273,6 +1420,67 @@ async function handleReservations(req, res, pathname) {
       return;
     }
 
+    let createdLoan = null;
+    if (status === "fulfilled" && body.createLoan) {
+      const reader = data.readers.find((item) => item.id === reservation.readerId);
+      const book = data.books.find((item) => item.id === reservation.bookId);
+      const dueDate = String(body.dueDate || "").trim();
+
+      if (!reader || !book) {
+        sendJson(res, 400, { error: "Doc gia hoac sach cua dat truoc khong con ton tai." });
+        return;
+      }
+
+      if (!isValidDateString(dueDate) || isBeforeToday(dueDate)) {
+        sendJson(res, 400, { error: "Han tra phai la ngay hop le va khong duoc trong qua khu." });
+        return;
+      }
+
+      const activeReaderLoans = data.loans.filter(
+        (loan) => loan.readerId === reader.id && loan.status !== "returned"
+      ).length;
+      if (activeReaderLoans >= MAX_ACTIVE_LOANS_PER_READER) {
+        sendJson(res, 400, { error: `Doc gia da muon toi da ${MAX_ACTIVE_LOANS_PER_READER} sach.` });
+        return;
+      }
+
+      const duplicateActiveLoan = data.loans.some(
+        (loan) => loan.readerId === reader.id && loan.bookId === book.id && loan.status !== "returned"
+      );
+      if (duplicateActiveLoan) {
+        sendJson(res, 400, { error: "Doc gia dang muon sach nay, khong the tao phieu trung." });
+        return;
+      }
+
+      const availableQuantity = Number(book.quantity) - activeLoanCount(data.loans, book.id);
+      if (availableQuantity <= 0 || ["lost", "repair"].includes(book.condition || "good")) {
+        sendJson(res, 400, { error: "Sach chua san sang de chuyen dat truoc thanh phieu muon." });
+        return;
+      }
+
+      createdLoan = {
+        id: nextId(data.loans),
+        readerId: reader.id,
+        bookId: book.id,
+        borrowedDate: normalizeDate(),
+        dueDate,
+        returnedDate: null,
+        status: "borrowed",
+        fineStatus: "none",
+        finePaidDate: null,
+        fineHandledBy: "",
+        reservationId: reservation.id,
+      };
+      data.loans.push(createdLoan);
+      addActivity(data, req, "loan.created_from_reservation", `Tao phieu muon #${createdLoan.id} tu dat truoc #${reservation.id}.`, {
+        loanId: createdLoan.id,
+        reservationId: reservation.id,
+        readerId: reader.id,
+        bookId: book.id,
+        dueDate,
+      });
+    }
+
     reservation.status = status;
     reservation.handledAt = status === "waiting" ? null : new Date().toISOString();
     reservation.handledBy = status === "waiting" ? "" : getActorLabel(data, req);
@@ -1283,7 +1491,10 @@ async function handleReservations(req, res, pathname) {
       bookId: reservation.bookId,
     });
     await writeData(data);
-    sendJson(res, 200, decorateReservations(data).find((item) => item.id === reservation.id));
+    sendJson(res, 200, {
+      reservation: decorateReservations(data).find((item) => item.id === reservation.id),
+      loan: createdLoan ? decorateLoans(data).find((item) => item.id === createdLoan.id) : null,
+    });
     return;
   }
 
@@ -1295,7 +1506,7 @@ async function handleReviews(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/reviews") {
     const reviews = decorateReviews(data).sort((first, second) => second.id - first.id);
-    sendJson(res, 200, isAdminRequest(req) ? reviews : reviews.filter((review) => review.status !== "hidden"));
+    sendJson(res, 200, isStaffRequest(req) ? reviews : reviews.filter((review) => review.status !== "hidden"));
     return;
   }
 
@@ -1427,6 +1638,28 @@ async function handleActivities(req, res, url) {
   sendJson(res, 200, activities.slice(0, 300));
 }
 
+async function handleNotifications(req, res) {
+  const data = await readData();
+
+  if (!isStaffRequest(req)) {
+    const reader = requireReaderForUser(data, req, res);
+    if (!reader) return;
+  }
+
+  sendJson(res, 200, buildNotifications(data, req));
+}
+
+async function handleBackup(req, res) {
+  if (!requireAdminOnly(req, res)) return;
+
+  const data = await readData();
+  sendJson(res, 200, {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    data,
+  });
+}
+
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
@@ -1489,6 +1722,16 @@ async function handleRequest(req, res) {
 
     if ((req.method === "GET" || req.method === "DELETE") && pathname === "/api/activities") {
       await handleActivities(req, res, url);
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/notifications") {
+      await handleNotifications(req, res);
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/backup") {
+      await handleBackup(req, res);
       return;
     }
 

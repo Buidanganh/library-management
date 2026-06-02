@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  BookOpen,
+  CalendarClock,
+  CircleDollarSign,
+  History,
+  Mail,
+  ShieldCheck,
+  Star,
+  UserCircle,
+  WalletCards,
+} from "lucide-react";
 import { createReview, extendLoan, getReaderLoans, getReaders, getReservations } from "../services/api";
 
 const formatCurrency = (value) =>
@@ -38,6 +49,41 @@ function getFineStatusLabel(status) {
   return "Không phạt";
 }
 
+function getReaderInitial(reader, user) {
+  return String(reader?.name || user?.fullName || reader?.email || user?.email || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase() || "?";
+}
+
+function ReaderAvatar({ reader, user }) {
+  const [imageSrc, setImageSrc] = useState(reader?.profileImageUrl || "");
+
+  useEffect(() => {
+    setImageSrc(reader?.profileImageUrl || "");
+  }, [reader?.profileImageUrl]);
+
+  if (imageSrc) {
+    return (
+      <img
+        className="reader-avatar-large"
+        src={imageSrc}
+        alt={`Ảnh profile của ${reader?.name || user?.fullName || "độc giả"}`}
+        onError={() => setImageSrc("")}
+      />
+    );
+  }
+
+  return <div className="reader-avatar-large">{getReaderInitial(reader, user)}</div>;
+}
+
+function getStatusTone(status) {
+  if (status === "overdue") return "danger";
+  if (status === "borrowed" || status === "fulfilled" || status === "returned") return "success";
+  if (status === "waiting" || status === "unpaid") return "warning";
+  return "";
+}
+
 function ReaderProfile({ user }) {
   const [reader, setReader] = useState(null);
   const [loans, setLoans] = useState([]);
@@ -45,6 +91,7 @@ function ReaderProfile({ user }) {
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState(null);
   const [reviewForm, setReviewForm] = useState({ bookId: "", rating: 5, comment: "" });
+  const [historyFilter, setHistoryFilter] = useState("all");
   const [error, setError] = useState("");
 
   const loadProfile = async () => {
@@ -85,9 +132,15 @@ function ReaderProfile({ user }) {
     [loans]
   );
 
+  const waitingReservations = useMemo(
+    () => reservations.filter((item) => item.status === "waiting"),
+    [reservations]
+  );
+
   const summary = useMemo(
     () => ({
       active: activeLoans.length,
+      totalLoans: loans.length,
       overdue: activeLoans.filter((loan) => loan.status === "overdue").length,
       totalFines: loans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
       unpaidFines: loans
@@ -96,6 +149,69 @@ function ReaderProfile({ user }) {
     }),
     [activeLoans, loans]
   );
+
+  const readerLevel =
+    summary.totalLoans >= 20
+      ? "Platinum"
+      : summary.totalLoans >= 10
+        ? "Gold"
+        : summary.totalLoans >= 4
+          ? "Silver"
+          : "Starter";
+  const nextReaderLevel =
+    summary.totalLoans >= 20
+      ? { label: "Platinum", target: 20 }
+      : summary.totalLoans >= 10
+        ? { label: "Platinum", target: 20 }
+        : summary.totalLoans >= 4
+          ? { label: "Gold", target: 10 }
+          : { label: "Silver", target: 4 };
+  const readerLevelProgress = Math.min(
+    100,
+    Math.round((summary.totalLoans / Math.max(nextReaderLevel.target, 1)) * 100)
+  );
+
+  const profileTimeline = useMemo(
+    () =>
+      [
+        ...activeLoans.map((loan) => ({
+          id: `loan-${loan.id}`,
+          type: loan.status,
+          title: loan.bookTitle,
+          meta: `${getStatusLabel(loan.status)} - ${getDueText(loan)}`,
+          date: loan.dueDate,
+        })),
+        ...returnedLoans.slice(0, 8).map((loan) => ({
+          id: `returned-${loan.id}`,
+          type: "returned",
+          title: loan.bookTitle,
+          meta: `Đã trả ${loan.returnedDate || "-"}`,
+          date: loan.returnedDate || loan.dueDate,
+        })),
+        ...reservations.slice(0, 6).map((reservation) => ({
+          id: `reservation-${reservation.id}`,
+          type: reservation.status === "waiting" ? "reserved" : reservation.status,
+          title: reservation.bookTitle,
+          meta: reservation.status === "waiting" ? "Đang chờ đặt trước" : "Đặt trước đã xử lý",
+          date: reservation.createdAt,
+        })),
+      ]
+        .filter((item) => item.date)
+        .sort((first, second) => new Date(second.date) - new Date(first.date))
+        .slice(0, 10),
+    [activeLoans, returnedLoans, reservations]
+  );
+
+  const historyLoans = useMemo(() => {
+    const sortedLoans = [...loans].sort((first, second) => {
+      const firstDate = first.returnedDate || first.dueDate || first.borrowedDate;
+      const secondDate = second.returnedDate || second.dueDate || second.borrowedDate;
+      return new Date(secondDate) - new Date(firstDate);
+    });
+
+    if (historyFilter === "all") return sortedLoans;
+    return sortedLoans.filter((loan) => loan.status === historyFilter);
+  }, [historyFilter, loans]);
 
   const handleExtend = async (loan) => {
     const nextDueDate = new Date(new Date(loan.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -167,46 +283,150 @@ function ReaderProfile({ user }) {
         <div className="empty-state">Tài khoản chưa liên kết với hồ sơ độc giả.</div>
       ) : (
         <>
-          <div className="profile-summary-grid">
-            <div className="profile-panel">
-              <h3>{reader.name || user.fullName}</h3>
-              <div className="modal-summary">
-                <span>Email: <strong>{reader.email || user.email}</strong></span>
-                <span>Số điện thoại: <strong>{reader.phone || "-"}</strong></span>
-                <span>Mã độc giả: <strong>#{reader.id}</strong></span>
-                <span>Tài khoản: <strong>{reader.accountStatus === "locked" ? "Đã khóa" : "Hoạt động"}</strong></span>
+          <div className="profile-summary-grid reader-profile-hero-grid">
+            <div className="profile-panel reader-profile-hero-card library-passport-card">
+              <div className="reader-avatar-block">
+                <ReaderAvatar reader={reader} user={user} />
+                <div>
+                  <span className="page-eyebrow">Library passport</span>
+                  <h3>{reader.name || user.fullName}</h3>
+                  <p>{reader.email || user.email}</p>
+                </div>
+              </div>
+              <div className="reader-status-strip">
+                <span className={reader.accountStatus === "locked" ? "danger" : "success"}>
+                  <UserCircle size={16} />
+                  {reader.accountStatus === "locked" ? "Tài khoản đã khóa" : "Tài khoản hoạt động"}
+                </span>
+                <span>
+                  Mã độc giả <strong>#{reader.id}</strong>
+                </span>
+                <span>
+                  SĐT <strong>{reader.phone || "-"}</strong>
+                </span>
+              </div>
+              <div className="passport-stamp-strip">
+                <span>
+                  <strong>{readerLevel}</strong>
+                  Hạng hoạt động
+                </span>
+                <span>
+                  <strong>{summary.totalLoans}</strong>
+                  Tổng lượt mượn
+                </span>
+                <span>
+                  <strong>{waitingReservations.length}</strong>
+                  Đặt trước
+                </span>
+              </div>
+              <div className="reader-passport-progress">
+                <div>
+                  <span>Tiến độ hạng {nextReaderLevel.label}</span>
+                  <strong>{summary.totalLoans}/{nextReaderLevel.target} lượt</strong>
+                </div>
+                <div className="reader-level-track" aria-hidden="true">
+                  <span style={{ width: `${readerLevelProgress}%` }} />
+                </div>
+              </div>
+              <div className="reader-passport-alerts">
+                <span className={summary.active > 0 ? "success" : ""}>{summary.active} sách đang mượn</span>
+                <span className={summary.unpaidFines > 0 ? "danger" : "success"}>
+                  {summary.unpaidFines > 0 ? `${formatCurrency(summary.unpaidFines)} chưa thu` : "Không nợ phạt"}
+                </span>
               </div>
             </div>
 
             <div className="metric-card">
-              <span>Đang mượn</span>
+              <span><CalendarClock size={16} /> Đang mượn</span>
               <strong>{summary.active}</strong>
               <small>{summary.overdue} phiếu quá hạn</small>
             </div>
             <div className="metric-card">
-              <span>Tổng phạt</span>
+              <span><CircleDollarSign size={16} /> Tổng phạt</span>
               <strong>{formatCurrency(summary.totalFines)}</strong>
               <small>Còn nợ {formatCurrency(summary.unpaidFines)}</small>
             </div>
             <div className="metric-card">
-              <span>Lịch sử</span>
+              <span><History size={16} /> Lịch sử</span>
               <strong>{returnedLoans.length}</strong>
               <small>Phiếu đã trả</small>
             </div>
           </div>
 
-          <div className="table-card" style={{ marginTop: 24 }}>
+          <section className="reader-info-grid">
+            <article className="reader-info-card">
+              <div className="reader-info-icon"><Mail size={18} /></div>
+              <div>
+                <span>Thông tin liên hệ</span>
+                <strong>{reader.email || user.email || "-"}</strong>
+                <small>{reader.phone || "Chưa cập nhật số điện thoại"}</small>
+              </div>
+            </article>
+            <article className="reader-info-card">
+              <div className="reader-info-icon"><WalletCards size={18} /></div>
+              <div>
+                <span>Thông tin thẻ</span>
+                <strong>Độc giả #{reader.id}</strong>
+                <small>Trạng thái: {reader.accountStatus === "locked" ? "Đã khóa" : "Hoạt động"}</small>
+              </div>
+            </article>
+            <article className="reader-info-card">
+              <div className="reader-info-icon"><ShieldCheck size={18} /></div>
+              <div>
+                <span>Sức khỏe tài khoản</span>
+                <strong>{summary.unpaidFines > 0 ? formatCurrency(summary.unpaidFines) : "Không còn nợ"}</strong>
+                <small>{summary.overdue > 0 ? `${summary.overdue} phiếu cần xử lý` : "Không có phiếu quá hạn"}</small>
+              </div>
+            </article>
+            <article className="reader-info-card">
+              <div className="reader-info-icon"><Star size={18} /></div>
+              <div>
+                <span>Hoạt động đọc</span>
+                <strong>{readerLevel}</strong>
+                <small>{summary.totalLoans} lượt mượn, {waitingReservations.length} đặt trước</small>
+              </div>
+            </article>
+          </section>
+
+          <div className="table-card reader-profile-timeline-card" style={{ marginTop: 24 }}>
+            <div className="table-card-header row-between">
+              <div>
+                <h3>Timeline cá nhân</h3>
+                <p>Dòng thời gian gộp sách đang mượn, lịch sử trả và đặt trước.</p>
+              </div>
+              <span className="badge">{profileTimeline.length} mốc</span>
+            </div>
+            {profileTimeline.length === 0 ? (
+              <div className="empty-state compact">Chưa có hoạt động nào trong hồ sơ.</div>
+            ) : (
+              <div className="profile-timeline-list">
+                {profileTimeline.map((item) => (
+                  <article className={`profile-timeline-item ${item.type}`} key={item.id}>
+                    <span className="profile-timeline-dot" />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <small>{item.meta}</small>
+                    </div>
+                    <time>{new Date(item.date).toLocaleDateString("vi-VN")}</time>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="table-card reader-active-loans-card" style={{ marginTop: 24 }}>
             <div className="table-card-header row-between">
               <div>
                 <h3>Sách đang mượn</h3>
                 <p>Có thể gia hạn nhanh thêm 7 ngày cho phiếu chưa trả.</p>
               </div>
+              <span className="badge">{activeLoans.length} phiếu</span>
             </div>
             {activeLoans.length === 0 ? (
               <div className="empty-state compact">Bạn chưa có sách đang mượn.</div>
             ) : (
               <div className="table-responsive">
-                <table className="table table-sm">
+                <table className="table table-sm reader-history-table">
                   <thead>
                     <tr>
                       <th>Mã</th>
@@ -222,11 +442,16 @@ function ReaderProfile({ user }) {
                     {activeLoans.map((loan) => (
                       <tr key={loan.id}>
                         <td>#{loan.id}</td>
-                        <td>{loan.bookTitle}</td>
+                        <td>
+                          <div className="reader-book-cell">
+                            <BookOpen size={16} />
+                            <strong>{loan.bookTitle}</strong>
+                          </div>
+                        </td>
                         <td>{loan.borrowedDate}</td>
                         <td>{loan.dueDate}</td>
                         <td>
-                          <span className={loan.status === "overdue" ? "badge danger" : "badge success"}>
+                          <span className={`badge ${getStatusTone(loan.status)}`}>
                             {getDueText(loan)}
                           </span>
                         </td>
@@ -234,7 +459,7 @@ function ReaderProfile({ user }) {
                           {loan.fineAmount ? (
                             <div className="stacked-cell">
                               <strong>{formatCurrency(loan.fineAmount)}</strong>
-                              <span className={loan.fineStatus === "unpaid" ? "badge warning" : "badge"}>
+                              <span className={`badge ${getStatusTone(loan.fineStatus)}`}>
                                 {getFineStatusLabel(loan.fineStatus)}
                               </span>
                             </div>
@@ -266,13 +491,13 @@ function ReaderProfile({ user }) {
                 <h3>Sách đã đặt trước</h3>
                 <p>Theo dõi hàng chờ đặt trước của bạn.</p>
               </div>
-              <span className="badge">{reservations.filter((item) => item.status === "waiting").length} đang chờ</span>
+              <span className="badge">{waitingReservations.length} đang chờ</span>
             </div>
             {reservations.length === 0 ? (
               <div className="empty-state compact">Bạn chưa đặt trước sách nào.</div>
             ) : (
               <div className="table-responsive">
-                <table className="table table-sm">
+                <table className="table table-sm reader-history-table">
                   <thead>
                     <tr>
                       <th>Mã</th>
@@ -285,10 +510,15 @@ function ReaderProfile({ user }) {
                     {reservations.map((item) => (
                       <tr key={item.id}>
                         <td>#{item.id}</td>
-                        <td>{item.bookTitle}</td>
+                        <td>
+                          <div className="reader-book-cell">
+                            <BookOpen size={16} />
+                            <strong>{item.bookTitle}</strong>
+                          </div>
+                        </td>
                         <td>{new Date(item.createdAt).toLocaleDateString("vi-VN")}</td>
                         <td>
-                          <span className={item.status === "waiting" ? "badge warning" : item.status === "fulfilled" ? "badge success" : "badge"}>
+                          <span className={`badge ${getStatusTone(item.status)}`}>
                             {item.status === "waiting" ? "Đang chờ" : item.status === "fulfilled" ? "Đã xử lý" : "Đã hủy"}
                           </span>
                         </td>
@@ -300,14 +530,14 @@ function ReaderProfile({ user }) {
             )}
           </div>
 
-          <div className="table-card" style={{ marginTop: 24 }}>
+          <div className="table-card reader-review-card" style={{ marginTop: 24 }}>
             <div className="table-card-header row-between">
               <div>
                 <h3>Đánh giá sách</h3>
                 <p>Gửi nhận xét cho sách bạn đã từng mượn.</p>
               </div>
             </div>
-            <form className="form-grid" onSubmit={handleReviewSubmit}>
+            <form className="form-grid reader-review-form" onSubmit={handleReviewSubmit}>
               <div className="form-group">
                 <label>Sách</label>
                 <select value={reviewForm.bookId} onChange={(event) => setReviewForm((state) => ({ ...state, bookId: event.target.value }))}>
@@ -347,16 +577,33 @@ function ReaderProfile({ user }) {
             </form>
           </div>
 
-          <div className="table-card" style={{ marginTop: 24 }}>
+          <div className="table-card reader-history-card" style={{ marginTop: 24 }}>
             <div className="table-card-header row-between">
               <div>
                 <h3>Lịch sử mượn trả</h3>
-                <p>Danh sách phiếu đã trả gần nhất.</p>
+                <p>Danh sách phiếu mượn được tô trạng thái để dễ quét nhanh.</p>
               </div>
-              <span className="badge">{returnedLoans.length} phiếu</span>
+              <span className="badge">{historyLoans.length} phiếu</span>
+            </div>
+            <div className="quick-filter-strip reader-history-filters">
+              {[
+                ["all", "Tất cả", loans.length],
+                ["borrowed", "Đang mượn", loans.filter((loan) => loan.status === "borrowed").length],
+                ["overdue", "Quá hạn", loans.filter((loan) => loan.status === "overdue").length],
+                ["returned", "Đã trả", returnedLoans.length],
+              ].map(([value, label, count]) => (
+                <button
+                  className={`quick-filter-chip ${historyFilter === value ? "active" : ""}`}
+                  key={value}
+                  type="button"
+                  onClick={() => setHistoryFilter(value)}
+                >
+                  {label} <strong>{count}</strong>
+                </button>
+              ))}
             </div>
             <div className="table-responsive">
-              <table className="table table-sm">
+              <table className="table table-sm reader-history-table">
                 <thead>
                   <tr>
                     <th>Mã</th>
@@ -368,21 +615,41 @@ function ReaderProfile({ user }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {returnedLoans.slice(0, 12).map((loan) => (
-                    <tr key={loan.id}>
+                  {historyLoans.slice(0, 12).map((loan) => (
+                    <tr className={`loan-row-${loan.status}`} key={loan.id}>
                       <td>#{loan.id}</td>
-                      <td>{loan.bookTitle}</td>
+                      <td>
+                        <div className="reader-book-cell">
+                          <BookOpen size={16} />
+                          <strong>{loan.bookTitle}</strong>
+                        </div>
+                      </td>
                       <td>{loan.borrowedDate}</td>
                       <td>{loan.returnedDate || "-"}</td>
-                      <td>{getStatusLabel(loan.status)}</td>
-                      <td>{loan.fineAmount ? formatCurrency(loan.fineAmount) : "-"}</td>
+                      <td>
+                        <span className={`badge ${getStatusTone(loan.status)}`}>
+                          {getStatusLabel(loan.status)}
+                        </span>
+                      </td>
+                      <td>
+                        {loan.fineAmount ? (
+                          <div className="stacked-cell">
+                            <strong>{formatCurrency(loan.fineAmount)}</strong>
+                            <span className={`badge ${getStatusTone(loan.fineStatus)}`}>
+                              {getFineStatusLabel(loan.fineStatus)}
+                            </span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                     </tr>
                   ))}
 
-                  {returnedLoans.length === 0 && (
+                  {historyLoans.length === 0 && (
                     <tr>
                       <td colSpan="6" className="empty-table">
-                        Chưa có lịch sử trả sách.
+                        Chưa có phiếu phù hợp với bộ lọc.
                       </td>
                     </tr>
                   )}

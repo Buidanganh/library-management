@@ -20,9 +20,16 @@ import {
   getLoans,
   getReaderLoans,
   getReaders,
+  updateReaderAccount,
   updateReaderAccountStatus,
   updateReader,
 } from "../services/api";
+
+function getRoleLabel(role) {
+  if (role === "admin") return "Admin";
+  if (role === "librarian") return "Thủ thư";
+  return "Thành viên";
+}
 
 function getStatusLabel(status) {
   if (status === "borrowed") return "Đang mượn";
@@ -63,12 +70,14 @@ function exportReadersAsJson(readers) {
 }
 
 function exportReadersAsCsv(readers) {
-  const headers = ["id", "name", "email", "phone", "booksBorrowed", "accountStatus"];
+  const headers = ["id", "name", "email", "phone", "profileImageUrl", "accountRole", "booksBorrowed", "accountStatus"];
   const rows = readers.map((reader) => [
     reader.id,
     reader.name,
     reader.email,
     reader.phone,
+    reader.profileImageUrl || "",
+    reader.accountRole || "member",
     reader.booksBorrowed ?? 0,
     reader.accountStatus || "active",
   ]);
@@ -84,6 +93,8 @@ function exportReadersAsXlsx(readers) {
     "Họ tên": reader.name,
     "Email": reader.email,
     "Điện thoại": reader.phone,
+    "Ảnh profile": reader.profileImageUrl || "",
+    "Vai trò": getRoleLabel(reader.accountRole),
     "Sách đang mượn": reader.booksBorrowed ?? 0,
     "Tài khoản": reader.hasAccount ? (reader.accountStatus === "locked" ? "Đã khóa" : "Hoạt động") : "Chưa có",
   }));
@@ -146,6 +157,7 @@ function parseCsvToReaders(csvText) {
       name: reader.name || reader.fullname || reader["họ tên"] || "",
       email: reader.email || "",
       phone: reader.phone || reader["điện thoại"] || "",
+      profileImageUrl: reader.profileimageurl || reader.avatarurl || reader.imageurl || reader.photourl || reader["ảnh profile"] || "",
     };
   });
 }
@@ -155,8 +167,34 @@ function validateReaderRows(rows) {
     const errors = [];
     if (!String(reader.name || "").trim()) errors.push("Thiếu tên.");
     if (!String(reader.email || "").includes("@")) errors.push("Email không hợp lệ.");
+    if (!String(reader.profileImageUrl || "").trim()) errors.push("Thiếu ảnh profile.");
     return { index, reader, errors };
   });
+}
+
+function getReaderInitial(reader) {
+  return String(reader?.name || reader?.email || "?").trim().charAt(0).toUpperCase() || "?";
+}
+
+function ReaderAvatar({ reader, className = "reader-avatar-small" }) {
+  const [imageSrc, setImageSrc] = useState(reader?.profileImageUrl || "");
+
+  useEffect(() => {
+    setImageSrc(reader?.profileImageUrl || "");
+  }, [reader?.profileImageUrl]);
+
+  if (imageSrc) {
+    return (
+      <img
+        className={className}
+        src={imageSrc}
+        alt={`Ảnh profile của ${reader?.name || "độc giả"}`}
+        onError={() => setImageSrc("")}
+      />
+    );
+  }
+
+  return <span className={className}>{getReaderInitial(reader)}</span>;
 }
 
 function exportReaderLoansAsJson(reader, loans) {
@@ -188,7 +226,7 @@ function exportReaderLoansAsCsv(reader, loans) {
   );
 }
 
-function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
+function Readers({ onNavigateToCreate, onEditBook, onDeleteBook, canManageRoles = true }) {
   const [readers, setReaders] = useState([]);
   const [books, setBooks] = useState([]);
   const [loans, setLoans] = useState([]);
@@ -208,6 +246,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [borrowFilter, setBorrowFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState("");
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
@@ -226,6 +265,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
     name: "",
     email: "",
     phone: "",
+    profileImageUrl: "",
   });
 
   const loadData = async () => {
@@ -266,6 +306,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
         (accountFilter === "active" && reader.hasAccount && reader.accountStatus !== "locked") ||
         (accountFilter === "locked" && reader.accountStatus === "locked") ||
         (accountFilter === "no-account" && !reader.hasAccount);
+      const matchesRoleFilter = !roleFilter || (reader.accountRole || "member") === roleFilter;
       const matchesBorrowFilter =
         !borrowFilter ||
         (borrowFilter === "active" && borrowedCount > 0) ||
@@ -278,9 +319,9 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
           String(value || "").toLowerCase().includes(query)
         );
 
-      return matchesBorrowFilter && matchesAccountFilter && matchesQuery;
+      return matchesBorrowFilter && matchesAccountFilter && matchesRoleFilter && matchesQuery;
     });
-  }, [readers, loans, searchQuery, borrowFilter, accountFilter]);
+  }, [readers, loans, searchQuery, borrowFilter, accountFilter, roleFilter]);
 
   const readerSummary = useMemo(
     () => ({
@@ -292,6 +333,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
       ).length,
       locked: readers.filter((reader) => reader.accountStatus === "locked").length,
       noAccount: readers.filter((reader) => !reader.hasAccount).length,
+      admins: readers.filter((reader) => reader.accountRole === "admin").length,
+      librarians: readers.filter((reader) => reader.accountRole === "librarian").length,
       totalFines: loans.reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
     }),
     [readers, loans]
@@ -335,6 +378,14 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
   );
 
   const selectedReaderRisk = selectedReader ? readerRiskById[selectedReader.id] || {} : {};
+  const selectedReaderTimeline = useMemo(
+    () =>
+      readerLoans
+        .slice()
+        .sort((first, second) => new Date(second.borrowedDate || 0) - new Date(first.borrowedDate || 0))
+        .slice(0, 6),
+    [readerLoans]
+  );
 
   const readerKpis = [
     {
@@ -381,6 +432,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
       name: "",
       email: "",
       phone: "",
+      profileImageUrl: "",
     });
   };
 
@@ -398,6 +450,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
       name: reader.name || "",
       email: reader.email || "",
       phone: reader.phone || "",
+      profileImageUrl: reader.profileImageUrl || "",
     });
   };
 
@@ -405,8 +458,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
     event.preventDefault();
     setErrorReaders("");
 
-    if (!readerForm.name || !readerForm.email) {
-      setErrorReaders("Vui lòng nhập họ tên và email độc giả.");
+    if (!readerForm.name || !readerForm.email || !readerForm.profileImageUrl) {
+      setErrorReaders("Vui lòng nhập họ tên, email và URL ảnh profile của độc giả.");
       return;
     }
 
@@ -585,6 +638,25 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
     }
   };
 
+  const handleReaderRoleChange = async (reader, role) => {
+    if (!reader.hasAccount) {
+      setErrorReaders("Độc giả này chưa có tài khoản đăng nhập để phân quyền.");
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorReaders("");
+
+    try {
+      await updateReaderAccount(reader.id, { role });
+      await loadData();
+    } catch (err) {
+      setErrorReaders(err.message || "Không thể cập nhật vai trò tài khoản.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="page-shell readers-page">
       <div className="page-title row-between page-hero readers-hero">
@@ -682,7 +754,26 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
               onChange={handleReaderChange}
             />
           </div>
+
+          <div className="form-group">
+            <label>Ảnh profile</label>
+            <input
+              type="url"
+              name="profileImageUrl"
+              placeholder="https://example.com/profile.jpg"
+              value={readerForm.profileImageUrl}
+              onChange={handleReaderChange}
+              required
+            />
+          </div>
         </div>
+
+        {readerForm.profileImageUrl && (
+          <div className="reader-inline-preview">
+            <ReaderAvatar reader={readerForm} />
+            <span>Xem trước ảnh profile</span>
+          </div>
+        )}
 
         <div className="form-actions">
           <button className="primary-button" type="submit" disabled={submitting}>
@@ -716,6 +807,8 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
               <span>Phạt dự kiến: {formatCurrency(readerSummary.totalFines)}</span>
               <span>Chưa mượn: {readerSummary.inactive}</span>
               <span>Tài khoản khóa: {readerSummary.locked}</span>
+              <span>Thủ thư: {readerSummary.librarians}</span>
+              <span>Admin: {readerSummary.admins}</span>
               <span>Chưa có tài khoản: {readerSummary.noAccount}</span>
             </div>
           </div>
@@ -754,6 +847,16 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
                 <option value="no-account">Chưa có tài khoản</option>
               </select>
             </div>
+
+            <div className="filter-group">
+              <label>Vai trò</label>
+              <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+                <option value="">Tất cả</option>
+                <option value="admin">Admin</option>
+                <option value="librarian">Thủ thư</option>
+                <option value="user">Thành viên</option>
+              </select>
+            </div>
           </div>
 
           <div className="table-responsive">
@@ -765,6 +868,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
                 <th>Email</th>
                 <th>Điện thoại</th>
                 <th>Tài khoản</th>
+                <th>Vai trò</th>
                 <th>Sách đang mượn</th>
                 <th>Rủi ro</th>
                 <th>Hành động</th>
@@ -779,7 +883,10 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
                       <td>#{reader.id}</td>
                       <td>
                         <div className="reader-name-cell">
-                          <strong>{reader.name}</strong>
+                          <div className="reader-name-with-avatar">
+                            <ReaderAvatar reader={reader} />
+                            <strong>{reader.name}</strong>
+                          </div>
                           {risk.overdue > 0 ? (
                             <span className="badge danger">Có quá hạn</span>
                           ) : Number(reader.booksBorrowed || 0) > 0 ? (
@@ -798,6 +905,25 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
                           <span className="badge danger">Đã khóa</span>
                         ) : (
                           <span className="badge success">Hoạt động</span>
+                        )}
+                      </td>
+                      <td>
+                        {reader.hasAccount && canManageRoles ? (
+                          <select
+                            className="table-select"
+                            value={reader.accountRole || "member"}
+                            onChange={(event) => handleReaderRoleChange(reader, event.target.value)}
+                            disabled={submitting}
+                            aria-label={`Vai trò của ${reader.name}`}
+                          >
+                            <option value="user">Thành viên</option>
+                            <option value="librarian">Thủ thư</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        ) : reader.hasAccount ? (
+                          <span className="badge">{getRoleLabel(reader.accountRole)}</span>
+                        ) : (
+                          <span className="badge">Không có</span>
                         )}
                       </td>
                       <td>
@@ -871,7 +997,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
 
               {filteredReaders.length === 0 && (
                 <tr>
-                  <td colSpan="8" className="empty-table">
+                  <td colSpan="9" className="empty-table">
                     Không tìm thấy độc giả phù hợp.
                   </td>
                 </tr>
@@ -883,9 +1009,12 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
       )}
 
       {selectedReader && (
-        <div className="table-card" style={{ marginTop: 24 }} ref={historyPanelRef}>
+        <div className="table-card reader-360-card" style={{ marginTop: 24 }} ref={historyPanelRef}>
           <div className="table-card-header row-between">
-            <h3>Lịch sử mượn của {selectedReader.name}</h3>
+            <div>
+              <span className="page-eyebrow">Reader 360</span>
+              <h3>Hồ sơ toàn cảnh của {selectedReader.name}</h3>
+            </div>
             <button
               className="secondary-button"
               type="button"
@@ -901,6 +1030,16 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
           </div>
 
           <div className="reader-detail-panel">
+            <div className="reader-detail-profile-card">
+              <ReaderAvatar reader={selectedReader} className="reader-avatar-large" />
+              <span>Ảnh profile</span>
+              <strong>{selectedReader.name}</strong>
+            </div>
+            <div className="reader-score-card">
+              <span>Điểm rủi ro</span>
+              <strong>{selectedReaderRisk.overdue > 0 ? "Cao" : selectedReaderRisk.active >= 4 ? "Theo dõi" : "Ổn định"}</strong>
+              <small>{selectedReaderSummary.total} phiếu, {formatCurrency(selectedReaderSummary.totalFines)} phạt</small>
+            </div>
             <div>
               <span>Hồ sơ</span>
               <strong>{selectedReader.email}</strong>
@@ -924,6 +1063,18 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook }) {
               />
             </div>
           </div>
+
+          {selectedReaderTimeline.length > 0 && (
+            <div className="reader-timeline">
+              {selectedReaderTimeline.map((loan) => (
+                <div className={`reader-timeline-item ${loan.status}`} key={loan.id}>
+                  <strong>{loan.bookTitle}</strong>
+                  <span>{loan.borrowedDate} → {loan.returnedDate || loan.dueDate}</span>
+                  <small>{getStatusLabel(loan.status)}</small>
+                </div>
+              ))}
+            </div>
+          )}
 
           {historyError && <div className="error-message">{historyError}</div>}
 

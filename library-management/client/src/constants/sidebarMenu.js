@@ -25,5 +25,5 @@ export const sidebarMenuItems = [
   { id: "add-book", label: "Thêm sách", icon: BookPlus, section: "admin", shortcut: "6", adminOnly: true },
   { id: "readers", label: "Độc giả", icon: UserRound, section: "admin", shortcut: "7", adminOnly: true },
   { id: "catalog", label: "Danh mục", icon: ClipboardList, section: "admin", shortcut: "8", adminOnly: true },
-  { id: "activity", label: "Nhật ký", icon: History, section: "admin", shortcut: "9", adminOnly: true },
+  { id: "activity", label: "Nhật ký", icon: History, section: "admin", shortcut: "9", adminOnly: true, systemAdminOnly: true },
 ];

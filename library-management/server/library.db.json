@@ -1184,6 +1184,18 @@
       "fineStatus": "none",
       "finePaidDate": null,
       "fineHandledBy": ""
+    },
+    {
+      "id": 8,
+      "readerId": 51,
+      "bookId": 14,
+      "borrowedDate": "2026-06-02",
+      "dueDate": "2026-07-02",
+      "returnedDate": null,
+      "status": "borrowed",
+      "fineStatus": "none",
+      "finePaidDate": null,
+      "fineHandledBy": ""
     }
   ],
   "reservations": [],
@@ -1244,6 +1256,19 @@
     ]
   },
   "activities": [
+    {
+      "id": 7,
+      "type": "loan.created",
+      "message": "Tao phieu muon #8: Đỗ Tùng Dương muon Naruto Tập 1.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-02T14:28:07.497Z",
+      "metadata": {
+        "loanId": 8,
+        "readerId": 51,
+        "bookId": 14,
+        "dueDate": "2026-07-02"
+      }
+    },
     {
       "id": 6,
       "type": "loan.created",

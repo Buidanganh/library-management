@@ -160,6 +160,18 @@ export function updateReaderAccountStatus(readerId, status) {
   });
 }
 
+export function updateReaderAccount(readerId, payload) {
+  if (!readerId) {
+    throw new Error("Không xác định được mã độc giả.");
+  }
+
+  return request(`/api/readers/${readerId}/account`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getLoans() {
   return request("/api/loans");
 }
@@ -206,6 +218,10 @@ export function getStats() {
   return request("/api/stats");
 }
 
+export function getNotifications() {
+  return request("/api/notifications");
+}
+
 export function getReservations() {
   return request("/api/reservations");
 }
@@ -218,7 +234,7 @@ export function createReservation(payload) {
   });
 }
 
-export function updateReservationStatus(reservationId, status) {
+export function updateReservationStatus(reservationId, status, options = {}) {
   if (!reservationId) {
     throw new Error("Không xác định được mã đặt trước.");
   }
@@ -226,7 +242,7 @@ export function updateReservationStatus(reservationId, status) {
   return request(`/api/reservations/${reservationId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, ...options }),
   });
 }
 
@@ -269,4 +285,8 @@ export function deleteActivities(olderThan) {
   return request(`/api/activities${query}`, {
     method: "DELETE",
   });
+}
+
+export function getBackup() {
+  return request("/api/backup");
 }

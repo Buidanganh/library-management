@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import Dashboard from "../pages/Dashboard";
@@ -11,19 +11,28 @@ import ActivityLog from "../pages/ActivityLog";
 import ReaderProfile from "../pages/ReaderProfile";
 import Catalog from "../pages/Catalog";
 import { sidebarMenuItems } from "../constants/sidebarMenu";
-import { borrowBook, createBook, deleteBook, getStats, updateBook } from "../services/api";
+import { borrowBook, createBook, deleteBook, getNotifications, getStats, updateBook } from "../services/api";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebarCollapsed";
 const SIDEBAR_COLLAPSED_MANUAL_KEY = "sidebarCollapsedManual";
 const SIDEBAR_PINNED_KEY = "sidebarPinned";
 const RECENT_PAGES_KEY = "recentPages";
 const FAVORITE_PAGES_KEY = "favoritePages";
+const THEME_KEY = "libraryTheme";
+const DENSITY_KEY = "libraryDensity";
+const FOCUS_MODE_KEY = "libraryFocusMode";
 
 function Layout({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [editingBook, setEditingBook] = useState(null);
   const [returnPage, setReturnPage] = useState("books");
   const [borrowRequest, setBorrowRequest] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "light");
+  const [density, setDensity] = useState(() => localStorage.getItem(DENSITY_KEY) || "comfortable");
+  const [focusMode, setFocusMode] = useState(() => localStorage.getItem(FOCUS_MODE_KEY) === "true");
   const [confirmingBorrow, setConfirmingBorrow] = useState(false);
   const [sidebarBadges, setSidebarBadges] = useState({ borrow: 0, overdue: 0 });
   const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
@@ -51,7 +60,8 @@ function Layout({ user, onLogout }) {
     }
   });
   const isAdmin = user?.role === "admin";
-  const userRoleLabel = isAdmin ? "Quản trị viên" : "Độc giả";
+  const canManageLibrary = ["admin", "librarian"].includes(user?.role);
+  const userRoleLabel = isAdmin ? "Quản trị viên" : user?.role === "librarian" ? "Thủ thư" : "Độc giả";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       const pinned = JSON.parse(localStorage.getItem(SIDEBAR_PINNED_KEY) || "false");
@@ -75,7 +85,7 @@ function Layout({ user, onLogout }) {
   });
 
   const handleSaveBook = async (bookData) => {
-    if (!isAdmin) return;
+    if (!canManageLibrary) return;
 
     if (bookData.id) {
       await updateBook(bookData.id, bookData);
@@ -86,12 +96,12 @@ function Layout({ user, onLogout }) {
   };
 
   const handleDeleteBook = async (bookId) => {
-    if (!isAdmin) return;
+    if (!canManageLibrary) return;
     await deleteBook(bookId);
   };
 
   const handleBorrowBook = async (book) => {
-    if (isAdmin) return;
+    if (canManageLibrary) return;
 
     return new Promise((resolve, reject) => {
       setBorrowRequest({ book, resolve, reject });
@@ -119,6 +129,7 @@ function Layout({ user, onLogout }) {
         dueDate,
       });
       getStats().then(applySidebarStats).catch(() => {});
+      refreshNotifications();
 
       window.alert("Mượn sách thành công. Bạn có thể xem phiếu mượn trong mục Mượn / Trả sách.");
       resolve?.(true);
@@ -131,7 +142,7 @@ function Layout({ user, onLogout }) {
   };
 
   const handleNavigateToCreate = (page = "books") => {
-    if (!isAdmin) return;
+    if (!canManageLibrary) return;
 
     setEditingBook(null);
     setReturnPage(page);
@@ -139,7 +150,7 @@ function Layout({ user, onLogout }) {
   };
 
   const handleEditBook = (book, page = "books") => {
-    if (!isAdmin) return;
+    if (!canManageLibrary) return;
 
     setEditingBook(book);
     setReturnPage(page);
@@ -153,18 +164,75 @@ function Layout({ user, onLogout }) {
 
   const handleChangePage = useCallback((page) => {
     const adminPages = ["add-book", "readers", "catalog", "activity"];
-    if (!isAdmin && adminPages.includes(page)) {
+    if (!canManageLibrary && adminPages.includes(page)) {
       setCurrentPage("dashboard");
       return;
     }
 
-    if (isAdmin && page === "profile") {
+    if (canManageLibrary && page === "profile") {
+      setCurrentPage("dashboard");
+      return;
+    }
+
+    if (!isAdmin && page === "activity") {
       setCurrentPage("dashboard");
       return;
     }
 
     setCurrentPage(page);
-  }, [isAdmin]);
+  }, [canManageLibrary, isAdmin]);
+
+  const canUseMenuItem = useCallback((item) =>
+    (!item.adminOnly || canManageLibrary) &&
+    (!item.systemAdminOnly || isAdmin) &&
+    (!item.userOnly || !canManageLibrary),
+  [canManageLibrary, isAdmin]);
+
+  const globalSearchItems = useMemo(() => {
+    const pageItems = sidebarMenuItems
+      .filter(canUseMenuItem)
+      .map((item) => ({
+        id: `page-${item.id}`,
+        page: item.id,
+        title: item.label,
+        meta: item.shortcut ? `Trang trong hệ thống · Alt + ${item.shortcut}` : "Trang trong hệ thống",
+        keywords: [item.label, item.id].join(" "),
+      }));
+
+    const notificationItems = notifications.map((item) => ({
+      id: `notification-${item.id}`,
+      page: item.page,
+      title: item.title,
+      meta: item.message,
+      keywords: [item.title, item.message, item.tone].filter(Boolean).join(" "),
+    }));
+
+    return [...notificationItems, ...pageItems];
+  }, [canUseMenuItem, notifications]);
+
+  const commandItems = useMemo(
+    () => [
+      ...globalSearchItems.map((item) => ({
+        ...item,
+        kind: "Trang",
+        run: () => item.page && handleChangePage(item.page),
+      })),
+      { id: "cmd-books-attention", title: "Mở kho sách cần xử lý", meta: "Sách sắp hết, hết, thiếu ảnh", kind: "Tác vụ", run: () => handleChangePage("books") },
+      { id: "cmd-borrow", title: "Mở kanban mượn trả", meta: "Điều phối phiếu đang mượn", kind: "Tác vụ", run: () => handleChangePage("borrow") },
+      canManageLibrary && { id: "cmd-add-book", title: "Thêm sách mới", meta: "Biên mục đầu sách", kind: "Tác vụ", run: () => handleNavigateToCreate("books") },
+      { id: "cmd-toggle-theme", title: theme === "dark" ? "Chuyển giao diện sáng" : "Chuyển giao diện tối", meta: "Theme", kind: "Hiển thị", run: () => setTheme((value) => (value === "dark" ? "light" : "dark")) },
+      { id: "cmd-toggle-density", title: density === "compact" ? "Chuyển giao diện thoáng" : "Chuyển giao diện gọn", meta: "Density", kind: "Hiển thị", run: () => setDensity((value) => (value === "compact" ? "comfortable" : "compact")) },
+      { id: "cmd-toggle-focus", title: focusMode ? "Tắt Focus mode" : "Bật Focus mode", meta: "Ẩn sidebar/header phụ", kind: "Hiển thị", run: () => setFocusMode((value) => !value) },
+    ].filter(Boolean),
+    [globalSearchItems, handleChangePage, handleNavigateToCreate, canManageLibrary, theme, density, focusMode]
+  );
+
+  const commandResults = useMemo(() => {
+    const query = commandQuery.trim().toLowerCase();
+    return commandItems
+      .filter((item) => !query || [item.title, item.meta, item.kind].join(" ").toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [commandItems, commandQuery]);
 
   const handleSidebarChangePage = useCallback((page) => {
     handleChangePage(page);
@@ -181,6 +249,12 @@ function Layout({ user, onLogout }) {
     });
   }, []);
 
+  const refreshNotifications = useCallback(() => {
+    getNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]));
+  }, []);
+
   const pageInfo = {
     dashboard: {
       title: "Tổng quan",
@@ -188,7 +262,7 @@ function Layout({ user, onLogout }) {
     },
     books: {
       title: "Quản lý sách",
-      subtitle: isAdmin
+      subtitle: canManageLibrary
         ? "Thêm, sửa, xóa và theo dõi sách hiện có."
         : "Tra cứu danh sách sách hiện có trong thư viện.",
     },
@@ -233,22 +307,22 @@ function Layout({ user, onLogout }) {
         onNavigateToReaders={() => handleChangePage("readers")}
         onNavigateToBorrow={() => handleChangePage("borrow")}
         onNavigateToOverdue={() => handleChangePage("overdue")}
-        isAdmin={isAdmin}
+        isAdmin={canManageLibrary}
       />
     ),
     books: (
       <Books
-        onSaveBook={isAdmin ? handleSaveBook : undefined}
-        onDeleteBook={isAdmin ? handleDeleteBook : undefined}
-        onEditBook={isAdmin ? (book) => handleEditBook(book, "books") : undefined}
-        onNavigateToCreate={isAdmin ? () => handleNavigateToCreate("books") : undefined}
-        onBorrowBook={!isAdmin ? handleBorrowBook : undefined}
-        canManage={isAdmin}
-        canBorrow={!isAdmin}
+        onSaveBook={canManageLibrary ? handleSaveBook : undefined}
+        onDeleteBook={canManageLibrary ? handleDeleteBook : undefined}
+        onEditBook={canManageLibrary ? (book) => handleEditBook(book, "books") : undefined}
+        onNavigateToCreate={canManageLibrary ? () => handleNavigateToCreate("books") : undefined}
+        onBorrowBook={!canManageLibrary ? handleBorrowBook : undefined}
+        canManage={canManageLibrary}
+        canBorrow={!canManageLibrary}
       />
     ),
-    profile: !isAdmin ? <ReaderProfile user={user} /> : <Dashboard />,
-    "add-book": isAdmin ? (
+    profile: !canManageLibrary ? <ReaderProfile user={user} /> : <Dashboard />,
+    "add-book": canManageLibrary ? (
       <BookCreate
         onSaveBook={handleSaveBook}
         onCancel={handleCancelCreate}
@@ -258,18 +332,19 @@ function Layout({ user, onLogout }) {
     ) : (
       <Dashboard />
     ),
-    readers: isAdmin ? (
+    readers: canManageLibrary ? (
       <Readers
         onNavigateToCreate={() => handleNavigateToCreate("readers")}
         onEditBook={(book) => handleEditBook(book, "readers")}
         onDeleteBook={handleDeleteBook}
+        canManageRoles={isAdmin}
       />
     ) : (
       <Dashboard />
     ),
-    catalog: isAdmin ? <Catalog /> : <Dashboard />,
-    borrow: <Borrow isAdmin={isAdmin} />,
-    overdue: <Overdue isAdmin={isAdmin} />,
+    catalog: canManageLibrary ? <Catalog /> : <Dashboard />,
+    borrow: <Borrow isAdmin={canManageLibrary} />,
+    overdue: <Overdue isAdmin={canManageLibrary} />,
     activity: isAdmin ? <ActivityLog /> : <Dashboard />,
   };
 
@@ -382,18 +457,17 @@ function Layout({ user, onLogout }) {
   }, [applySidebarStats, user?.id, user?.role]);
 
   useEffect(() => {
+    refreshNotifications();
+  }, [refreshNotifications, currentPage, user?.id, user?.role]);
+
+  useEffect(() => {
     const onKeyDown = (event) => {
       if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
       const tagName = event.target?.tagName?.toLowerCase();
       if (tagName === "input" || tagName === "textarea" || tagName === "select") return;
 
-      const item = sidebarMenuItems.find(
-        (menuItem) =>
-          menuItem.shortcut === event.key &&
-          (!menuItem.adminOnly || isAdmin) &&
-          (!menuItem.userOnly || !isAdmin)
-      );
+      const item = sidebarMenuItems.find((menuItem) => menuItem.shortcut === event.key && canUseMenuItem(menuItem));
 
       if (!item) return;
 
@@ -403,10 +477,41 @@ function Layout({ user, onLogout }) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleChangePage, isAdmin]);
+  }, [handleChangePage, canUseMenuItem]);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_KEY, theme);
+    localStorage.setItem(DENSITY_KEY, density);
+    localStorage.setItem(FOCUS_MODE_KEY, JSON.stringify(focusMode));
+  }, [theme, density, focusMode]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      const tagName = event.target?.tagName?.toLowerCase();
+      const isTyping = tagName === "input" || tagName === "textarea" || tagName === "select";
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+        return;
+      }
+
+      if (event.key === "Escape" && commandOpen) {
+        setCommandOpen(false);
+        setCommandQuery("");
+      }
+
+      if (!isTyping && event.key === "?") {
+        setCommandOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [commandOpen]);
 
   return (
-    <div className={"app-layout" + (sidebarCollapsed ? " sidebar-collapsed" : "") }>
+    <div className={`app-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${focusMode ? "focus-mode" : ""} theme-${theme} density-${density}`}>
       <Sidebar
         currentPage={currentPage}
         onChangePage={handleSidebarChangePage}
@@ -430,11 +535,27 @@ function Layout({ user, onLogout }) {
           user={user}
           roleLabel={userRoleLabel}
           currentPageLabel={pageInfo[currentPage].title}
+          notifications={notifications}
+          globalSearchItems={globalSearchItems}
+          onNavigate={handleChangePage}
           onLogout={onLogout}
         />
 
+        <div className="workspace-preferences">
+          <button type="button" onClick={() => setCommandOpen(true)}>Ctrl K</button>
+          <button type="button" onClick={() => setTheme((value) => (value === "dark" ? "light" : "dark"))}>
+            {theme === "dark" ? "Sáng" : "Tối"}
+          </button>
+          <button type="button" onClick={() => setDensity((value) => (value === "compact" ? "comfortable" : "compact"))}>
+            {density === "compact" ? "Thoáng" : "Gọn"}
+          </button>
+          <button type="button" onClick={() => setFocusMode((value) => !value)}>
+            {focusMode ? "Thoát focus" : "Focus"}
+          </button>
+        </div>
+
         <section className="page-content">
-          {!isAdmin && (
+          {!canManageLibrary && (
             <div className="permission-banner">
               <strong>Quyền độc giả</strong>
               <span>Bạn có thể tra cứu sách, mượn sách và theo dõi phiếu mượn của mình. Các chức năng quản trị sách và độc giả được ẩn.</span>
@@ -462,6 +583,37 @@ function Layout({ user, onLogout }) {
               <button className="secondary-button" type="button" onClick={cancelBorrowBook} disabled={confirmingBorrow}>
                 Hủy
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {commandOpen && (
+        <div className="command-palette-backdrop" role="dialog" aria-modal="true">
+          <div className="command-palette">
+            <input
+              autoFocus
+              value={commandQuery}
+              onChange={(event) => setCommandQuery(event.target.value)}
+              placeholder="Tìm trang, tác vụ, lệnh hiển thị..."
+            />
+            <div className="command-palette-list">
+              {commandResults.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => {
+                    item.run?.();
+                    setCommandOpen(false);
+                    setCommandQuery("");
+                  }}
+                >
+                  <span>{item.kind}</span>
+                  <strong>{item.title}</strong>
+                  <small>{item.meta}</small>
+                </button>
+              ))}
+              {commandResults.length === 0 && <div className="command-empty">Không có lệnh phù hợp.</div>}
             </div>
           </div>
         </div>

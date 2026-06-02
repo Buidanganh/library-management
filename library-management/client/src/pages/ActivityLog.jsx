@@ -12,7 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { utils, writeFile } from "xlsx";
-import { deleteActivities, getActivities } from "../services/api";
+import { deleteActivities, getActivities, getBackup } from "../services/api";
 
 const typeLabels = {
   "book.created": "Thêm sách",
@@ -25,7 +25,9 @@ const typeLabels = {
   "reader.bulk_created": "Nhập độc giả",
   "reader.locked": "Khóa tài khoản",
   "reader.unlocked": "Mở tài khoản",
+  "reader.role_updated": "Phân quyền",
   "loan.created": "Mượn sách",
+  "loan.created_from_reservation": "Mượn từ đặt trước",
   "loan.extended": "Gia hạn",
   "loan.returned": "Trả sách",
   "loan.fine_updated": "Cập nhật phạt",
@@ -105,8 +107,12 @@ function getActivityMessage(activity) {
       return `Khóa tài khoản độc giả: ${metadata.readerName || metadata.email || activity.message}.`;
     case "reader.unlocked":
       return `Mở tài khoản độc giả: ${metadata.readerName || metadata.email || activity.message}.`;
+    case "reader.role_updated":
+      return `Cập nhật vai trò tài khoản: ${metadata.readerName || metadata.email || activity.message}.`;
     case "loan.created":
       return `Tạo phiếu mượn #${metadata.loanId || activity.id}.`;
+    case "loan.created_from_reservation":
+      return `Tạo phiếu mượn #${metadata.loanId || activity.id} từ đặt trước #${metadata.reservationId || "-"}.`;
     case "loan.extended":
       return `Gia hạn phiếu #${metadata.loanId || activity.id} đến ${metadata.dueDate || "-"}.`;
     case "loan.returned":
@@ -210,6 +216,7 @@ function ActivityLog() {
   const [cleanupModal, setCleanupModal] = useState(false);
   const [cleanupOlderThan, setCleanupOlderThan] = useState("");
   const [cleaning, setCleaning] = useState(false);
+  const [exportingBackup, setExportingBackup] = useState(false);
 
   const loadActivities = async () => {
     setLoading(true);
@@ -228,6 +235,24 @@ function ActivityLog() {
   useEffect(() => {
     loadActivities();
   }, []);
+
+  const exportBackup = async () => {
+    setExportingBackup(true);
+    setError("");
+
+    try {
+      const backup = await getBackup();
+      downloadFile(
+        JSON.stringify(backup, null, 2),
+        `library-backup-${new Date().toISOString().slice(0, 10)}.json`,
+        "application/json"
+      );
+    } catch (err) {
+      setError(err.message || "Không thể xuất backup dữ liệu.");
+    } finally {
+      setExportingBackup(false);
+    }
+  };
 
   const types = useMemo(
     () =>
@@ -283,6 +308,15 @@ function ActivityLog() {
   }, [activities, searchQuery, groupFilter, typeFilter, actorFilter, fromDate, toDate]);
 
   const latestActivities = useMemo(() => filteredActivities.slice(0, 5), [filteredActivities]);
+  const timelineGroups = useMemo(() => {
+    const groups = new Map();
+    filteredActivities.slice(0, 40).forEach((activity) => {
+      const dateKey = new Date(activity.createdAt).toLocaleDateString("vi-VN");
+      if (!groups.has(dateKey)) groups.set(dateKey, []);
+      groups.get(dateKey).push(activity);
+    });
+    return Array.from(groups.entries()).map(([date, items]) => ({ date, items }));
+  }, [filteredActivities]);
   const totalPages = Math.max(1, Math.ceil(filteredActivities.length / pageSize));
   const pagedActivities = useMemo(
     () => filteredActivities.slice((page - 1) * pageSize, page * pageSize),
@@ -389,6 +423,10 @@ function ActivityLog() {
           >
             <Download size={16} />
             <span>Xuất CSV</span>
+          </button>
+          <button className="secondary-button" type="button" onClick={exportBackup} disabled={exportingBackup}>
+            <ShieldCheck size={16} />
+            <span>{exportingBackup ? "Đang backup..." : "Backup dữ liệu"}</span>
           </button>
           <button className="secondary-button danger-button" type="button" onClick={() => setCleanupModal(true)}>
             <Trash2 size={16} />
@@ -543,6 +581,35 @@ function ActivityLog() {
           </div>
         </div>
       </div>
+
+      {!loading && timelineGroups.length > 0 && (
+        <div className="table-card activity-full-timeline-card" style={{ marginBottom: 24 }}>
+          <div className="table-card-header row-between">
+            <div>
+              <h3>Timeline hoạt động</h3>
+              <p>Nhóm theo ngày, hiển thị tối đa 40 hoạt động phù hợp bộ lọc hiện tại.</p>
+            </div>
+            <span className="badge">{filteredActivities.length} dòng</span>
+          </div>
+          <div className="activity-full-timeline">
+            {timelineGroups.map((group) => (
+              <section className="activity-date-group" key={group.date}>
+                <h4>{group.date}</h4>
+                <div>
+                  {group.items.map((activity) => (
+                    <button className="activity-full-item" type="button" key={activity.id} onClick={() => setSelectedActivity(activity)}>
+                      <span className={`activity-dot ${getTypeTone(activity.type)}`} />
+                      <strong>{typeLabels[activity.type] || activity.type}</strong>
+                      <small>{formatDateTime(activity.createdAt)} · {activity.actor}</small>
+                      <p>{getActivityMessage(activity)}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="skeleton-panel">

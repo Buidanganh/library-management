@@ -2,15 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
+  CheckSquare,
   FileJson,
   FileSpreadsheet,
+  Heart,
+  LayoutGrid,
   ImageOff,
+  List,
   PackageCheck,
   Plus,
+  Rows3,
   Search,
+  SlidersHorizontal,
   Sparkles,
+  Upload,
 } from "lucide-react";
-import { createReservation, getBooks, getLoans } from "../services/api";
+import { createReservation, getBooks, getLoans, getReservations, getReviews } from "../services/api";
+import { EmptyState, LoadingState } from "../components/ui";
+
+const WISHLIST_KEY = "libraryWishlistBookIds";
+const BOOK_SAVED_VIEWS_KEY = "libraryBookSavedViews";
 
 function getAvailableQuantity(book) {
   return Number(book.availableQuantity ?? book.quantity ?? 0);
@@ -104,6 +115,28 @@ function createBooksCsv(books) {
   return [headers.join(","), ...rows].join("\n");
 }
 
+function getImportKey(book) {
+  const isbn = String(book.isbn || "").trim().toLowerCase();
+  if (isbn) return `isbn:${isbn}`;
+  return `book:${String(book.title || "").trim().toLowerCase()}::${String(book.author || "").trim().toLowerCase()}`;
+}
+
+function normalizeImportBook(book) {
+  return {
+    title: String(book.title || book.name || "").trim(),
+    imageUrl: String(book.imageUrl || book.imageurl || book.coverImage || "").trim(),
+    author: String(book.author || "").trim(),
+    category: String(book.category || "").trim(),
+    isbn: String(book.isbn || "").trim(),
+    condition: ["good", "damaged", "repair", "lost"].includes(String(book.condition || "good")) ? String(book.condition || "good") : "good",
+    publisher: String(book.publisher || "").trim(),
+    year: book.year === undefined || book.year === null ? "" : String(book.year).trim(),
+    quantity: Number(book.quantity || 0),
+    shelfLocation: String(book.shelfLocation || book.shelflocation || "").trim(),
+    description: String(book.description || "").trim(),
+  };
+}
+
 function downloadFile(content, filename, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -149,7 +182,56 @@ function BookCover({ book }) {
   );
 }
 
-function BookDetailPanel({ book, loans, onClose, onEditBook, onBorrowBook, onReserveBook, canManage, canBorrow, borrowing }) {
+function BookImagePreview({ book }) {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = String(book.imageUrl || "").trim();
+
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
+
+  if (!imageUrl) return null;
+
+  return (
+    <div className={`book-inline-preview ${failed ? "invalid" : ""}`}>
+      {!failed ? (
+        <img
+          className="book-cover"
+          src={imageUrl}
+          alt={`Xem trước ảnh sách ${book.title || ""}`}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="book-cover book-cover-placeholder">
+          {String(book.title || "?").charAt(0).toUpperCase()}
+        </div>
+      )}
+      <span>
+        <strong>{failed ? "URL ảnh không hợp lệ" : "Xem trước ảnh sách"}</strong>
+        <small>{failed ? "Kiểm tra lại đường dẫn ảnh trước khi lưu." : "Ảnh này sẽ hiển thị trong danh sách, grid và chi tiết sách."}</small>
+      </span>
+    </div>
+  );
+}
+
+function BookDetailPanel({
+  book,
+  loans,
+  reviews,
+  reservations,
+  relatedBooks,
+  onClose,
+  onEditBook,
+  onBorrowBook,
+  onReserveBook,
+  onToggleWishlist,
+  onSelectBook,
+  canManage,
+  canBorrow,
+  borrowing,
+  wishlisted,
+}) {
+  const [activeTab, setActiveTab] = useState("overview");
   const availableQuantity = getAvailableQuantity(book);
   const borrowedQuantity = Math.max(0, Number(book.quantity || 0) - availableQuantity);
   const status = getBookStatus(book);
@@ -157,9 +239,19 @@ function BookDetailPanel({ book, loans, onClose, onEditBook, onBorrowBook, onRes
     .filter((loan) => loan.bookId === book.id)
     .sort((first, second) => second.id - first.id);
   const activeLoans = bookLoans.filter((loan) => loan.status !== "returned");
+  const bookReviews = reviews.filter((review) => review.bookId === book.id && review.status !== "hidden");
+  const waitingReservations = reservations.filter(
+    (reservation) => reservation.bookId === book.id && reservation.status === "waiting"
+  );
+  const drawerStats = [
+    { label: "Còn lại", value: `${availableQuantity}/${book.quantity ?? 0}` },
+    { label: "Đang mượn", value: borrowedQuantity },
+    { label: "Lượt mượn", value: bookLoans.length },
+    { label: "Đặt trước", value: waitingReservations.length },
+  ];
 
   return (
-    <div className="book-detail-panel">
+    <div className="book-detail-panel book-detail-drawer" data-active-tab={activeTab}>
       <div className="book-detail-cover">
         <BookCover book={book} />
       </div>
@@ -185,6 +277,36 @@ function BookDetailPanel({ book, loans, onClose, onEditBook, onBorrowBook, onRes
           </span>
         </div>
 
+        <div className="book-drawer-hero-stats">
+          {drawerStats.map((item) => (
+            <span key={item.label}>
+              <strong>{item.value}</strong>
+              {item.label}
+            </span>
+          ))}
+        </div>
+
+        <div className="drawer-tab-list" role="tablist">
+          {[
+            ["overview", "Tổng quan"],
+            ["history", "Lịch sử"],
+            ["reviews", "Đánh giá"],
+            ["reservations", "Đặt trước"],
+            ["related", "Gợi ý"],
+          ].map(([tab, label]) => (
+            <button
+              className={activeTab === tab ? "active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="book-detail-grid">
           <span>Thể loại: <strong>{book.category || "-"}</strong></span>
           <span>ISBN: <strong>{book.isbn || "-"}</strong></span>
@@ -208,6 +330,10 @@ function BookDetailPanel({ book, loans, onClose, onEditBook, onBorrowBook, onRes
         <div className="form-actions">
           {canBorrow && (
             <>
+              <button className="secondary-button" type="button" onClick={() => onToggleWishlist(book)}>
+                <Heart size={17} fill={wishlisted ? "currentColor" : "none"} />
+                {wishlisted ? "Bỏ yêu thích" : "Yêu thích"}
+              </button>
               <button
                 className="primary-button"
                 type="button"
@@ -282,6 +408,57 @@ function BookDetailPanel({ book, loans, onClose, onEditBook, onBorrowBook, onRes
             </div>
           )}
         </div>
+
+        <div className="book-insight-grid">
+          <div className="book-insight-card">
+            <h4>Đánh giá độc giả</h4>
+            {bookReviews.length === 0 ? (
+              <div className="empty-state compact">Chưa có đánh giá cho sách này.</div>
+            ) : (
+              <div className="book-review-list">
+                {bookReviews.slice(0, 5).map((review) => (
+                  <div className="book-review-item" key={review.id}>
+                    <strong>{review.readerName}</strong>
+                    <span>{"★".repeat(Number(review.rating || 0))}</span>
+                    <small>{review.comment || "Không có bình luận."}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="book-insight-card">
+            <h4>Đặt trước đang chờ</h4>
+            {waitingReservations.length === 0 ? (
+              <div className="empty-state compact">Không có hàng chờ cho sách này.</div>
+            ) : (
+              <div className="reservation-mini-list">
+                {waitingReservations.slice(0, 5).map((reservation, index) => (
+                  <span key={reservation.id}>
+                    #{index + 1} {reservation.readerName} - {new Date(reservation.createdAt).toLocaleDateString("vi-VN")}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {relatedBooks.length > 0 && (
+          <div className="book-related-section">
+            <h4>Gợi ý sách liên quan</h4>
+            <div className="book-related-grid">
+              {relatedBooks.map((relatedBook) => (
+                <button className="book-related-item" type="button" key={relatedBook.id} onClick={() => onSelectBook(relatedBook.id)}>
+                  <BookCover book={relatedBook} />
+                  <span>
+                    <strong>{relatedBook.title}</strong>
+                    <small>{relatedBook.author}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -298,15 +475,44 @@ function Books({
 }) {
   const [books, setBooks] = useState([]);
   const [loans, setLoans] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [publisherFilter, setPublisherFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
   const [stockFilter, setStockFilter] = useState("");
   const [imageFilter, setImageFilter] = useState("");
   const [conditionFilter, setConditionFilter] = useState("");
   const [sortMode, setSortMode] = useState("title-asc");
+  const [viewMode, setViewMode] = useState("table");
+  const [pageDensity, setPageDensity] = useState("comfortable");
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [selectedBookIds, setSelectedBookIds] = useState([]);
+  const [wishlistIds, setWishlistIds] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(WISHLIST_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  });
+  const [importMode, setImportMode] = useState("upsert");
+  const [importRows, setImportRows] = useState([]);
+  const [importError, setImportError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [savedViews, setSavedViews] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(BOOK_SAVED_VIEWS_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  });
   const [bulkUpdate, setBulkUpdate] = useState({
     category: "",
     publisher: "",
@@ -334,9 +540,16 @@ function Books({
     setError("");
 
     try {
-      const [bookData, loanData] = await Promise.all([getBooks(), getLoans()]);
+      const [bookData, loanData, reviewData, reservationData] = await Promise.all([
+        getBooks(),
+        getLoans(),
+        getReviews(),
+        getReservations(),
+      ]);
       setBooks(bookData);
       setLoans(loanData);
+      setReviews(reviewData);
+      setReservations(reservationData);
     } catch (err) {
       setError(err.message || "Không thể tải dữ liệu sách.");
     } finally {
@@ -348,6 +561,18 @@ function Books({
     loadBooks();
   }, []);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlistIds));
+    } catch {}
+  }, [wishlistIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(BOOK_SAVED_VIEWS_KEY, JSON.stringify(savedViews));
+    } catch {}
+  }, [savedViews]);
+
   const categories = useMemo(
     () => Array.from(new Set(books.map((book) => book.category).filter(Boolean))).sort(),
     [books]
@@ -355,6 +580,14 @@ function Books({
 
   const publishers = useMemo(
     () => Array.from(new Set(books.map((book) => book.publisher).filter(Boolean))).sort(),
+    [books]
+  );
+
+  const years = useMemo(
+    () =>
+      Array.from(new Set(books.map((book) => String(book.year || "").trim()).filter(Boolean))).sort(
+        (first, second) => Number(second) - Number(first)
+      ),
     [books]
   );
 
@@ -423,32 +656,179 @@ function Books({
 
       const matchesCategory = !categoryFilter || book.category === categoryFilter;
       const matchesPublisher = !publisherFilter || book.publisher === publisherFilter;
-      const matchesStock = !stockFilter || getBookStatus(book) === stockFilter;
+      const matchesYear = !yearFilter || String(book.year || "").trim() === yearFilter;
+      const status = getBookStatus(book);
+      const matchesStock =
+        !stockFilter ||
+        (stockFilter === "attention" && (["low", "out", "blocked"].includes(status) || !hasBookImage(book))) ||
+        status === stockFilter;
       const matchesCondition = !conditionFilter || (book.condition || "good") === conditionFilter;
       const matchesImage =
         !imageFilter ||
         (imageFilter === "with-image" && hasBookImage(book)) ||
         (imageFilter === "missing-image" && !hasBookImage(book));
 
-      return matchesQuery && matchesCategory && matchesPublisher && matchesStock && matchesCondition && matchesImage;
+      return matchesQuery && matchesCategory && matchesPublisher && matchesYear && matchesStock && matchesCondition && matchesImage;
     });
 
     return sortBooks(filtered, sortMode);
-  }, [books, searchQuery, categoryFilter, publisherFilter, stockFilter, conditionFilter, imageFilter, sortMode]);
+  }, [books, searchQuery, categoryFilter, publisherFilter, yearFilter, stockFilter, conditionFilter, imageFilter, sortMode]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / pageSize));
+  const pagedBooks = useMemo(
+    () => filteredBooks.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredBooks, currentPage, pageSize]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, categoryFilter, publisherFilter, yearFilter, stockFilter, conditionFilter, imageFilter, sortMode, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const selectedBook = useMemo(
     () => books.find((book) => book.id === selectedBookId) || null,
     [books, selectedBookId]
   );
 
+  const selectedBooks = useMemo(
+    () => books.filter((book) => selectedBookIds.includes(book.id)),
+    [books, selectedBookIds]
+  );
+
+  const visibleBookIds = useMemo(() => pagedBooks.map((book) => book.id), [pagedBooks]);
+  const allVisibleSelected = visibleBookIds.length > 0 && visibleBookIds.every((id) => selectedBookIds.includes(id));
+  const bulkTargetBooks = selectedBooks.length > 0 ? selectedBooks : filteredBooks;
+
+  const wishlistBooks = useMemo(
+    () => books.filter((book) => wishlistIds.includes(book.id)).slice(0, 6),
+    [books, wishlistIds]
+  );
+
+  const duplicateBookMap = useMemo(() => {
+    const map = new Map();
+    books.forEach((book) => {
+      const key = getImportKey(book);
+      if (key !== "book:::") map.set(key, book);
+    });
+    return map;
+  }, [books]);
+
+  const importPreview = useMemo(
+    () =>
+      importRows.map((book, index) => {
+        const duplicate = duplicateBookMap.get(getImportKey(book));
+        const valid = Boolean(book.title && book.author && book.category && Number.isFinite(book.quantity) && book.quantity >= 0);
+        const action = !valid
+          ? "invalid"
+          : duplicate && importMode === "add"
+          ? "skip"
+          : duplicate && importMode === "update"
+          ? "update"
+          : duplicate && importMode === "upsert"
+          ? "update"
+          : !duplicate && importMode === "update"
+          ? "skip"
+          : "create";
+
+        return { id: `${book.title}-${index}`, book, duplicate, valid, action };
+      }),
+    [duplicateBookMap, importMode, importRows]
+  );
+
+  const importSummary = useMemo(
+    () => ({
+      create: importPreview.filter((item) => item.action === "create").length,
+      update: importPreview.filter((item) => item.action === "update").length,
+      skip: importPreview.filter((item) => item.action === "skip").length,
+      invalid: importPreview.filter((item) => item.action === "invalid").length,
+    }),
+    [importPreview]
+  );
+
+  const auditGroups = useMemo(
+    () => [
+      {
+        id: "missing-isbn",
+        label: "Thiếu ISBN",
+        books: books.filter((book) => !String(book.isbn || "").trim()),
+        apply: () => {
+          setSearchQuery("");
+          setStockFilter("");
+          setImageFilter("");
+          setConditionFilter("");
+          setSortMode("title-asc");
+        },
+      },
+      {
+        id: "missing-image",
+        label: "Thiếu ảnh bìa",
+        books: books.filter((book) => !hasBookImage(book)),
+        apply: () => setImageFilter("missing-image"),
+      },
+      {
+        id: "stock-risk",
+        label: "Sắp hết / hết",
+        books: books.filter((book) => ["low", "out"].includes(getBookStatus(book))),
+        apply: () => setStockFilter("attention"),
+      },
+      {
+        id: "blocked",
+        label: "Đang sửa / mất",
+        books: books.filter((book) => getBookStatus(book) === "blocked"),
+        apply: () => setStockFilter("blocked"),
+      },
+      {
+        id: "quantity-risk",
+        label: "Số lượng bất thường",
+        books: books.filter((book) => Number(book.quantity || 0) < Number(activeLoanCountByBookId[book.id] || 0)),
+        apply: () => setSortMode("quantity-asc"),
+      },
+    ],
+    [books, activeLoanCountByBookId]
+  );
+
+  const relatedBooks = useMemo(() => {
+    if (!selectedBook) return [];
+
+    return books
+      .filter(
+        (book) =>
+          book.id !== selectedBook.id &&
+          (book.category === selectedBook.category || book.author === selectedBook.author)
+      )
+      .sort((first, second) => {
+        const firstScore =
+          Number(first.category === selectedBook.category) + Number(first.author === selectedBook.author);
+        const secondScore =
+          Number(second.category === selectedBook.category) + Number(second.author === selectedBook.author);
+        return secondScore - firstScore;
+      })
+      .slice(0, 4);
+  }, [books, selectedBook]);
+
   const hasActiveFilters =
     Boolean(searchQuery.trim()) ||
     Boolean(categoryFilter) ||
     Boolean(publisherFilter) ||
+    Boolean(yearFilter) ||
     Boolean(stockFilter) ||
     Boolean(conditionFilter) ||
     Boolean(imageFilter) ||
     sortMode !== "title-asc";
+
+  const activeFilterCount = [
+    searchQuery.trim(),
+    categoryFilter,
+    publisherFilter,
+    yearFilter,
+    stockFilter,
+    conditionFilter,
+    imageFilter,
+    sortMode !== "title-asc" ? sortMode : "",
+  ].filter(Boolean).length;
 
   const bookKpis = [
     {
@@ -509,10 +889,37 @@ function Books({
     setSearchQuery("");
     setCategoryFilter("");
     setPublisherFilter("");
+    setYearFilter("");
     setStockFilter("");
     setConditionFilter("");
     setImageFilter("");
     setSortMode("title-asc");
+  };
+
+  const saveCurrentView = () => {
+    const name = window.prompt("Đặt tên saved view", stockFilter === "attention" ? "Sách cần xử lý" : "Bộ lọc sách");
+    if (!name) return;
+
+    const view = {
+      id: `view-${Date.now()}`,
+      name,
+      filters: { searchQuery, categoryFilter, publisherFilter, yearFilter, stockFilter, imageFilter, conditionFilter, sortMode, viewMode, pageSize },
+    };
+    setSavedViews((views) => [view, ...views.filter((item) => item.name !== name)].slice(0, 8));
+  };
+
+  const applySavedView = (view) => {
+    const filters = view.filters || {};
+    setSearchQuery(filters.searchQuery || "");
+    setCategoryFilter(filters.categoryFilter || "");
+    setPublisherFilter(filters.publisherFilter || "");
+    setYearFilter(filters.yearFilter || "");
+    setStockFilter(filters.stockFilter || "");
+    setImageFilter(filters.imageFilter || "");
+    setConditionFilter(filters.conditionFilter || "");
+    setSortMode(filters.sortMode || "title-asc");
+    setViewMode(filters.viewMode || "table");
+    setPageSize(filters.pageSize || 12);
   };
 
   const handleAddClick = () => {
@@ -520,6 +927,67 @@ function Books({
 
     resetForm();
     onNavigateToCreate();
+  };
+
+  const toggleBookSelection = (bookId) => {
+    setSelectedBookIds((ids) => (ids.includes(bookId) ? ids.filter((id) => id !== bookId) : [...ids, bookId]));
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedBookIds((ids) => {
+      if (allVisibleSelected) {
+        return ids.filter((id) => !visibleBookIds.includes(id));
+      }
+
+      return Array.from(new Set([...ids, ...visibleBookIds]));
+    });
+  };
+
+  const toggleWishlist = (book) => {
+    setWishlistIds((ids) => (ids.includes(book.id) ? ids.filter((id) => id !== book.id) : [...ids, book.id]));
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const payload = JSON.parse(content);
+      const rows = Array.isArray(payload) ? payload : payload.books;
+      if (!Array.isArray(rows)) {
+        throw new Error("File JSON phải là mảng sách hoặc object có trường books.");
+      }
+      setImportRows(rows.map(normalizeImportBook));
+      setImportError("");
+    } catch (err) {
+      setImportRows([]);
+      setImportError(err.message || "Không thể đọc file JSON.");
+    }
+  };
+
+  const confirmImportBooks = async () => {
+    if (!canManage || !onSaveBook || importSummary.invalid > 0) return;
+
+    setImporting(true);
+    setImportError("");
+    try {
+      for (const item of importPreview) {
+        if (item.action === "skip" || item.action === "invalid") continue;
+        await onSaveBook({
+          ...(item.duplicate || {}),
+          ...item.book,
+          id: item.action === "update" ? item.duplicate.id : undefined,
+        });
+      }
+      setImportRows([]);
+      await loadBooks();
+    } catch (err) {
+      setImportError(err.message || "Không thể nhập dữ liệu sách.");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleSaveBook = async () => {
@@ -609,8 +1077,10 @@ function Books({
 
     setBorrowingBookId(book.id);
     try {
+      const queuePosition =
+        reservations.filter((reservation) => reservation.bookId === book.id && reservation.status === "waiting").length + 1;
       await createReservation({ bookId: book.id });
-      alert("Đã ghi nhận đặt trước sách. Thư viện sẽ xử lý khi sách sẵn sàng.");
+      alert(`Đã ghi nhận đặt trước sách. Vị trí dự kiến trong hàng chờ: #${queuePosition}.`);
       await loadBooks();
     } catch (err) {
       alert(err.message || "Không thể đặt trước sách.");
@@ -650,13 +1120,14 @@ function Books({
 
     setBulkUpdating(true);
     try {
-      for (const book of filteredBooks) {
+      for (const book of bulkTargetBooks) {
         await onSaveBook({
           ...book,
           ...updates,
         });
       }
       setBulkUpdate({ category: "", publisher: "", shelfLocation: "" });
+      setSelectedBookIds([]);
       setBulkConfirmOpen(false);
       await loadBooks();
     } catch (err) {
@@ -667,7 +1138,7 @@ function Books({
   };
 
   return (
-    <div className="page-shell books-page">
+    <div className={`page-shell books-page page-density-${pageDensity}`}>
       <div className="page-title row-between books-hero">
         <div>
           <span className="page-eyebrow">
@@ -693,11 +1164,7 @@ function Books({
 
       {error && <div className="error-message">{error}</div>}
       {loading ? (
-        <div className="skeleton-panel">
-          <span />
-          <span />
-          <span />
-        </div>
+        <LoadingState lines={4} />
       ) : (
         <>
           <div className="inventory-metric-grid">
@@ -719,34 +1186,152 @@ function Books({
             })}
           </div>
 
-          <div className="table-card inventory-filter-card" style={{ marginBottom: 24 }}>
-            <div className="table-card-header row-between">
-              <div>
-                <h3>Tồn kho sách</h3>
-              </div>
-              <div className="loan-summary inventory-export-actions">
-                <button className="secondary-button" type="button" onClick={downloadFilteredBooksJson}>
-                  <FileJson size={16} />
-                  <span>Xuất JSON</span>
-                </button>
-                <button className="secondary-button" type="button" onClick={downloadFilteredBooksCsv} style={{ marginLeft: 8 }}>
-                  <FileSpreadsheet size={16} />
-                  <span>Xuất CSV</span>
-                </button>
-                <div className="summary-values">
-                  <span>Tổng đầu sách: {bookSummary.total}</span>
-                  <span>Còn tốt: {bookSummary.available}</span>
-                  <span>Sắp hết: {bookSummary.low}</span>
-                  <span>Hết sách: {bookSummary.out}</span>
-                  <span>Không cho mượn: {bookSummary.blocked}</span>
-                  <span>Có ảnh: {bookSummary.withImage}</span>
-                  <span>Thiếu ảnh: {bookSummary.missingImage}</span>
-                  <span>Đang hiển thị: {filteredBooks.length}</span>
+          {canManage && (
+            <div className="table-card books-audit-card" style={{ marginBottom: 24 }}>
+              <div className="table-card-header row-between">
+                <div>
+                  <h3>Audit kho sách</h3>
+                  <p>Checklist các nhóm dữ liệu cần bổ sung hoặc kiểm kê.</p>
                 </div>
+                <span className="badge">{auditGroups.reduce((total, group) => total + group.books.length, 0)} vấn đề</span>
+              </div>
+              <div className="books-audit-grid">
+                {auditGroups.map((group) => (
+                  <button className="books-audit-item" type="button" key={group.id} onClick={group.apply}>
+                    <strong>{group.books.length}</strong>
+                    <span>{group.label}</span>
+                    <small>{group.books.slice(0, 2).map((book) => book.title).join(", ") || "Không có vấn đề"}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="table-card inventory-filter-card books-control-card">
+            <div className="books-control-top">
+              <div className="books-control-title">
+                <h3>Tồn kho sách</h3>
+                <div className="summary-values books-summary-pills">
+                  <span>{filteredBooks.length}/{bookSummary.total} đang hiển thị</span>
+                  <span>{activeFilterCount} bộ lọc</span>
+                  <span>{bookSummary.available} còn tốt</span>
+                  <span>{bookSummary.low + bookSummary.out} sắp hết / hết</span>
+                  {canManage && <span>{selectedBookIds.length} đã chọn</span>}
+                </div>
+              </div>
+
+              <div className="books-control-actions">
+                <div className="view-mode-toggle" role="group" aria-label="Chọn kiểu hiển thị">
+                  {[
+                    ["table", List, "Bảng"],
+                    ["grid", LayoutGrid, "Lưới"],
+                    ["compact", Rows3, "Gọn"],
+                  ].map(([mode, Icon, label]) => (
+                    <button
+                      className={viewMode === mode ? "active" : ""}
+                      type="button"
+                      key={mode}
+                      onClick={() => setViewMode(mode)}
+                      title={label}
+                    >
+                      <Icon size={16} />
+                    </button>
+                  ))}
+                </div>
+                <span className="books-view-caption">
+                  {viewMode === "grid" ? "Lưới ảnh" : viewMode === "compact" ? "Bảng gọn" : "Bảng chi tiết"}
+                </span>
+                <div className="view-mode-toggle density-toggle" role="group" aria-label="Chọn mật độ hiển thị">
+                  {[
+                    ["comfortable", "Thoáng"],
+                    ["compact", "Gọn"],
+                  ].map(([mode, label]) => (
+                    <button
+                      className={pageDensity === mode ? "active" : ""}
+                      type="button"
+                      key={mode}
+                      onClick={() => setPageDensity(mode)}
+                      title={label}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button className="secondary-button icon-label-button" type="button" onClick={downloadFilteredBooksJson}>
+                  <FileJson size={16} />
+                  <span>JSON</span>
+                </button>
+                <button className="secondary-button icon-label-button" type="button" onClick={downloadFilteredBooksCsv}>
+                  <FileSpreadsheet size={16} />
+                  <span>CSV</span>
+                </button>
               </div>
             </div>
 
-            <div className="quick-filter-strip">
+            <div className="books-control-main">
+              <div className="search-bar books-search-bar">
+                <label>Tìm kiếm</label>
+                <span className="search-field-icon">
+                  <Search size={17} />
+                </span>
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Tìm tên sách, tác giả, ISBN, NXB hoặc vị trí"
+                />
+              </div>
+
+              <div className="filter-group">
+                <label>Thể loại</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                >
+                  <option value="">Tất cả</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label>Tình trạng</label>
+                <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value)}>
+                  <option value="">Tất cả</option>
+                  <option value="available">Có thể mượn</option>
+                  <option value="low">Sắp hết</option>
+                  <option value="out">Hết sách</option>
+                  <option value="blocked">Đang sửa / mất</option>
+                  <option value="attention">Cần xử lý</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label>Sắp xếp</label>
+                <select value={sortMode} onChange={(event) => setSortMode(event.target.value)}>
+                  <option value="title-asc">Tên A-Z</option>
+                  <option value="title-desc">Tên Z-A</option>
+                  <option value="quantity-desc">Số lượng nhiều nhất</option>
+                  <option value="quantity-asc">Số lượng ít nhất</option>
+                  <option value="available-desc">Còn lại nhiều nhất</option>
+                  <option value="available-asc">Còn lại ít nhất</option>
+                  <option value="missing-image">Thiếu ảnh lên đầu</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="quick-filter-strip books-quick-filters">
+              {savedViews.map((view) => (
+                <button className="quick-filter-chip saved-view-chip" type="button" key={view.id} onClick={() => applySavedView(view)}>
+                  {view.name}
+                </button>
+              ))}
+              <button className="quick-filter-chip" type="button" onClick={saveCurrentView}>
+                Lưu view
+              </button>
               <button
                 className={`quick-filter-chip ${!hasActiveFilters ? "active" : ""}`}
                 type="button"
@@ -787,39 +1372,30 @@ function Books({
                 type="button"
                 onClick={() => setImageFilter("missing-image")}
               >
-                Thiếu ảnh bìa
+                Thiếu ảnh
+              </button>
+              <button
+                className={`quick-filter-chip ${stockFilter === "attention" ? "active" : ""}`}
+                type="button"
+                onClick={() => setStockFilter("attention")}
+              >
+                Cần xử lý
               </button>
             </div>
 
-            <div className="filters-row">
-              <div className="search-bar">
-                <label>Tìm kiếm</label>
-                <span className="search-field-icon">
-                  <Search size={17} />
+            <details className="books-advanced-filters" open={advancedFiltersOpen || activeFilterCount > 3}>
+              <summary onClick={(event) => {
+                event.preventDefault();
+                setAdvancedFiltersOpen((open) => !open);
+              }}>
+                <span>
+                  <SlidersHorizontal size={16} />
+                  Bộ lọc nâng cao
                 </span>
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Tìm theo tên sách, tác giả, thể loại, NXB hoặc vị trí"
-                />
-              </div>
+                <strong>{activeFilterCount}</strong>
+              </summary>
 
-              <div className="filter-group">
-                <label>Thể loại</label>
-                <select
-                  value={categoryFilter}
-                  onChange={(event) => setCategoryFilter(event.target.value)}
-                >
-                  <option value="">Tất cả</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+              <div className="filters-row">
               <div className="filter-group">
                 <label>Nhà xuất bản</label>
                 <select
@@ -836,13 +1412,14 @@ function Books({
               </div>
 
               <div className="filter-group">
-                <label>Tình trạng</label>
-                <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value)}>
+                <label>Năm xuất bản</label>
+                <select value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
                   <option value="">Tất cả</option>
-                  <option value="available">Có thể mượn</option>
-                  <option value="low">Sắp hết</option>
-                  <option value="out">Hết sách</option>
-                  <option value="blocked">Đang sửa / mất</option>
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -867,15 +1444,12 @@ function Books({
               </div>
 
               <div className="filter-group">
-                <label>Sắp xếp</label>
-                <select value={sortMode} onChange={(event) => setSortMode(event.target.value)}>
-                  <option value="title-asc">Tên A-Z</option>
-                  <option value="title-desc">Tên Z-A</option>
-                  <option value="quantity-desc">Số lượng nhiều nhất</option>
-                  <option value="quantity-asc">Số lượng ít nhất</option>
-                  <option value="available-desc">Còn lại nhiều nhất</option>
-                  <option value="available-asc">Còn lại ít nhất</option>
-                  <option value="missing-image">Thiếu ảnh lên đầu</option>
+                <label>Hiển thị</label>
+                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                  <option value={8}>8 / trang</option>
+                  <option value={12}>12 / trang</option>
+                  <option value={20}>20 / trang</option>
+                  <option value={50}>50 / trang</option>
                 </select>
               </div>
 
@@ -891,7 +1465,76 @@ function Books({
                 </button>
               </div>
             </div>
+            </details>
           </div>
+
+          <div className="books-workspace-layout">
+          <section className="books-workspace-main">
+
+          {canManage && (
+            <div className="table-card import-preview-card" style={{ marginBottom: 24 }}>
+              <div className="table-card-header row-between">
+                <div>
+                  <h3>Nhập sách từ JSON</h3>
+                  <p>Preview sách mới, sách trùng ISBN/tên tác giả và chọn cách xử lý trước khi nhập.</p>
+                </div>
+                <label className="secondary-button">
+                  <Upload size={16} />
+                  <span>Chọn file JSON</span>
+                  <input type="file" accept=".json,application/json" onChange={handleImportFile} hidden />
+                </label>
+              </div>
+
+              <div className="import-mode-row">
+                <label>
+                  <input type="radio" name="importMode" value="upsert" checked={importMode === "upsert"} onChange={(event) => setImportMode(event.target.value)} />
+                  Thêm mới và cập nhật sách trùng
+                </label>
+                <label>
+                  <input type="radio" name="importMode" value="add" checked={importMode === "add"} onChange={(event) => setImportMode(event.target.value)} />
+                  Chỉ thêm mới, bỏ qua sách trùng
+                </label>
+                <label>
+                  <input type="radio" name="importMode" value="update" checked={importMode === "update"} onChange={(event) => setImportMode(event.target.value)} />
+                  Chỉ cập nhật sách trùng
+                </label>
+              </div>
+
+              {importError && <div className="form-error-banner">{importError}</div>}
+              {importRows.length > 0 && (
+                <>
+                  <div className="import-summary-row">
+                    <span>Tạo mới: <strong>{importSummary.create}</strong></span>
+                    <span>Cập nhật: <strong>{importSummary.update}</strong></span>
+                    <span>Bỏ qua: <strong>{importSummary.skip}</strong></span>
+                    <span>Lỗi: <strong>{importSummary.invalid}</strong></span>
+                  </div>
+                  <div className="import-preview-list">
+                    {importPreview.slice(0, 8).map((item) => (
+                      <div className={`import-preview-item ${item.action}`} key={item.id}>
+                        <strong>{item.book.title || "Thiếu tên sách"}</strong>
+                        <span>{item.book.author || "Thiếu tác giả"} · {item.book.category || "Thiếu thể loại"}</span>
+                        <small>
+                          {item.action === "create" && "Sẽ thêm mới"}
+                          {item.action === "update" && `Sẽ cập nhật #${item.duplicate.id}`}
+                          {item.action === "skip" && "Sẽ bỏ qua vì bị trùng"}
+                          {item.action === "invalid" && "Thiếu dữ liệu bắt buộc"}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="form-actions">
+                    <button className="primary-button" type="button" onClick={confirmImportBooks} disabled={importing || importSummary.invalid > 0}>
+                      {importing ? "Đang nhập..." : "Xác nhận nhập"}
+                    </button>
+                    <button className="secondary-button" type="button" onClick={() => setImportRows([])} disabled={importing}>
+                      Hủy preview
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {popularBookSpotlight.length > 0 && (
             <div className="table-card spotlight-card" style={{ marginBottom: 24 }}>
@@ -927,7 +1570,7 @@ function Books({
                   <h3>Cập nhật hàng loạt</h3>
                   <p>Áp dụng thể loại, nhà xuất bản hoặc vị trí kệ cho các sách đang hiển thị.</p>
                 </div>
-                <span className="badge">{filteredBooks.length} sách</span>
+                <span className="badge">{bulkTargetBooks.length} sách</span>
               </div>
 
               <div className="form-grid">
@@ -965,7 +1608,7 @@ function Books({
                   className="primary-button"
                   type="button"
                   onClick={handleBulkUpdate}
-                  disabled={bulkUpdating || filteredBooks.length === 0}
+                  disabled={bulkUpdating || bulkTargetBooks.length === 0}
                 >
                   {bulkUpdating ? "Đang cập nhật..." : "Cập nhật sách đang lọc"}
                 </button>
@@ -977,13 +1620,19 @@ function Books({
             <BookDetailPanel
               book={selectedBook}
               loans={loans}
+              reviews={reviews}
+              reservations={reservations}
+              relatedBooks={relatedBooks}
               onClose={() => setSelectedBookId(null)}
               onEditBook={handleEditBook}
               onBorrowBook={handleBorrowBook}
               onReserveBook={handleReserveBook}
+              onToggleWishlist={toggleWishlist}
+              onSelectBook={setSelectedBookId}
               canManage={canManage}
               canBorrow={canBorrow}
               borrowing={borrowingBookId === selectedBook.id}
+              wishlisted={wishlistIds.includes(selectedBook.id)}
             />
           )}
 
@@ -1070,12 +1719,7 @@ function Books({
                 </div>
               </div>
 
-              {formData.imageUrl && (
-                <div className="book-inline-preview">
-                  <BookCover book={formData} />
-                  <span>Xem trước ảnh sách</span>
-                </div>
-              )}
+              <BookImagePreview book={formData} />
 
               <div className="form-actions">
                 <button className="primary-button" onClick={handleSaveBook}>
@@ -1089,11 +1733,78 @@ function Books({
             </div>
           )}
 
-          <div className="table-card books-table-card">
+          {canManage && (
+            <div className="bulk-selection-bar">
+              <button className="secondary-button" type="button" onClick={toggleVisibleSelection} disabled={pagedBooks.length === 0}>
+                <CheckSquare size={16} />
+                <span>{allVisibleSelected ? "Bỏ chọn trang này" : "Chọn tất cả trang này"}</span>
+              </button>
+              <span>{selectedBookIds.length} sách đã chọn</span>
+              {selectedBookIds.length > 0 && (
+                <button className="small-button" type="button" onClick={() => setSelectedBookIds([])}>
+                  Bỏ chọn
+                </button>
+              )}
+            </div>
+          )}
+
+          {viewMode === "grid" && (
+            <div className="book-card-grid">
+              {pagedBooks.map((book) => {
+                const status = getBookStatus(book);
+
+                return (
+                  <article className={"book-card-item" + (selectedBookIds.includes(book.id) ? " selected" : "")} key={book.id}>
+                    {canManage && (
+                      <label className="book-select-check">
+                        <input type="checkbox" checked={selectedBookIds.includes(book.id)} onChange={() => toggleBookSelection(book.id)} />
+                        <span>Chọn</span>
+                      </label>
+                    )}
+                    <BookCover book={book} />
+                    <div>
+                      <strong>{book.title}</strong>
+                      <span>{book.author || "-"}</span>
+                      <small>{book.category || "Chưa phân loại"}</small>
+                    </div>
+                    <div className="book-card-meta">
+                      <span>Còn {getAvailableQuantity(book)}/{book.quantity}</span>
+                      <span className={status === "available" ? "badge success" : status === "low" ? "badge warning" : "badge danger"}>
+                        {getBookStatusLabel(book)}
+                      </span>
+                    </div>
+                    <div className="action-buttons">
+                      {canBorrow && (
+                        <button className="small-button" type="button" onClick={() => toggleWishlist(book)}>
+                          <Heart size={14} fill={wishlistIds.includes(book.id) ? "currentColor" : "none"} />
+                        </button>
+                      )}
+                      <button className="small-button" type="button" onClick={() => setSelectedBookId(book.id)}>Chi tiết</button>
+                      {canManage && <button className="small-button" type="button" onClick={() => handleEditBook(book)}>Sửa</button>}
+                    </div>
+                  </article>
+                );
+              })}
+              {filteredBooks.length === 0 && (
+                <EmptyState
+                  title="Không tìm thấy sách phù hợp"
+                  description="Thử xóa bộ lọc hoặc thêm sách mới vào kho."
+                  action={
+                    <button className="secondary-button" type="button" onClick={resetFilters} disabled={!hasActiveFilters}>
+                      Xóa bộ lọc
+                    </button>
+                  }
+                />
+              )}
+            </div>
+          )}
+
+          <div className={"table-card books-table-card" + (viewMode === "grid" ? " is-hidden" : "") + (viewMode === "compact" ? " compact-mode" : "")}>
             <div className="table-responsive">
               <table className="table table-sm">
                 <thead>
                   <tr>
+                    {canManage && <th className="select-column">Chọn</th>}
                     <th>Mã</th>
                     <th>Tên sách và ảnh</th>
                     <th>Tác giả</th>
@@ -1107,11 +1818,21 @@ function Books({
                 </thead>
 
                 <tbody>
-                  {filteredBooks.map((book) => {
+                  {pagedBooks.map((book) => {
                     const status = getBookStatus(book);
 
                     return (
                       <tr key={book.id}>
+                        {canManage && (
+                          <td className="select-column">
+                            <input
+                              type="checkbox"
+                              checked={selectedBookIds.includes(book.id)}
+                              onChange={() => toggleBookSelection(book.id)}
+                              aria-label={`Chọn ${book.title}`}
+                            />
+                          </td>
+                        )}
                         <td>#{book.id}</td>
                         <td>
                           <div className="book-info">
@@ -1181,6 +1902,12 @@ function Books({
                                 Chi tiết
                               </button>
 
+                              {canBorrow && (
+                                <button className="small-button" type="button" onClick={() => toggleWishlist(book)}>
+                                  <Heart size={14} fill={wishlistIds.includes(book.id) ? "currentColor" : "none"} />
+                                </button>
+                              )}
+
                               {canManage && (
                                 <>
                                   <button className="small-button" onClick={() => handleEditBook(book)}>
@@ -1204,14 +1931,90 @@ function Books({
 
                   {filteredBooks.length === 0 && (
                     <tr>
-                      <td colSpan={canManage || canBorrow ? 8 : 7} className="empty-table">
-                        Không tìm thấy sách phù hợp.
+                      <td colSpan={(canManage || canBorrow ? 8 : 7) + (canManage ? 1 : 0)} className="empty-table">
+                        <EmptyState
+                          title="Không tìm thấy sách phù hợp"
+                          description="Bộ lọc hiện tại không có kết quả. Có thể xóa bộ lọc để xem lại toàn bộ kho."
+                          action={
+                            <button className="secondary-button" type="button" onClick={resetFilters} disabled={!hasActiveFilters}>
+                              Xóa bộ lọc
+                            </button>
+                          }
+                        />
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {filteredBooks.length > 0 && (
+            <div className="pagination-row books-pagination-row">
+              <span>
+                Trang {currentPage}/{totalPages} - hiển thị {pagedBooks.length}/{filteredBooks.length} sách
+              </span>
+              <div className="action-buttons">
+                <button
+                  className="small-button"
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  Trước
+                </button>
+                <button
+                  className="small-button"
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
+
+          </section>
+
+          <aside className="books-workspace-side">
+            <div className="table-card">
+              <div className="table-card-header">
+                <div>
+                  <h3>Bảng điều khiển kho</h3>
+                  <p>Thông tin thao tác nhanh theo danh sách hiện tại.</p>
+                </div>
+              </div>
+              <div className="workspace-side-list">
+                <span>Đang hiển thị <strong>{filteredBooks.length}</strong></span>
+                <span>Đã chọn <strong>{selectedBookIds.length}</strong></span>
+                <span>Sắp hết / hết <strong>{bookSummary.low + bookSummary.out}</strong></span>
+                <span>Thiếu ảnh <strong>{bookSummary.missingImage}</strong></span>
+              </div>
+              {selectedBooks.length > 0 && (
+                <div className="workspace-selected-list">
+                  {selectedBooks.slice(0, 5).map((book) => (
+                    <button type="button" key={book.id} onClick={() => setSelectedBookId(book.id)}>
+                      <strong>{book.title}</strong>
+                      <small>{book.author || "-"}</small>
+                    </button>
+                  ))}
+                  {selectedBooks.length > 5 && <small>+{selectedBooks.length - 5} sách khác</small>}
+                </div>
+              )}
+              {canBorrow && wishlistBooks.length > 0 && (
+                <div className="workspace-selected-list">
+                  <strong>Danh sách yêu thích</strong>
+                  {wishlistBooks.map((book) => (
+                    <button type="button" key={book.id} onClick={() => setSelectedBookId(book.id)}>
+                      <strong>{book.title}</strong>
+                      <small>{getBookStatusLabel(book)}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
           </div>
 
           {deleteTarget && (
@@ -1235,7 +2038,7 @@ function Books({
             <div className="app-modal-backdrop" role="dialog" aria-modal="true">
               <div className="app-modal">
                 <h3>Cập nhật hàng loạt</h3>
-                <p>Cập nhật {filteredBooks.length} sách đang hiển thị theo bộ lọc hiện tại?</p>
+                <p>Cập nhật {bulkTargetBooks.length} sách {selectedBookIds.length > 0 ? "đã chọn" : "đang hiển thị theo bộ lọc hiện tại"}?</p>
                 <div className="modal-summary">
                   {bulkUpdate.category && <span>Thể loại: <strong>{bulkUpdate.category}</strong></span>}
                   {bulkUpdate.publisher && <span>Nhà xuất bản: <strong>{bulkUpdate.publisher}</strong></span>}

@@ -21,6 +21,7 @@ import {
   updateLoanFineStatus,
   updateReservationStatus,
 } from "../services/api";
+import { EmptyState, LoadingState } from "../components/ui";
 
 const MAX_ACTIVE_LOANS_PER_READER = 5;
 
@@ -132,6 +133,7 @@ function Borrow({ isAdmin = false }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [quickFilter, setQuickFilter] = useState("");
+  const [pageDensity, setPageDensity] = useState("comfortable");
   const [formData, setFormData] = useState({
     readerId: "",
     bookId: "",
@@ -243,6 +245,16 @@ function Borrow({ isAdmin = false }) {
       filtered: filteredLoans.length,
     };
   }, [loans, filteredLoans]);
+
+  const kanbanColumns = useMemo(
+    () => [
+      { id: "borrowed", title: "Đang mượn", tone: "success", loans: filteredLoans.filter((loan) => loan.status === "borrowed" && !isDueSoon(loan)) },
+      { id: "due-soon", title: "Sắp đến hạn", tone: "warning", loans: filteredLoans.filter(isDueSoon) },
+      { id: "overdue", title: "Quá hạn", tone: "danger", loans: filteredLoans.filter((loan) => loan.status === "overdue") },
+      { id: "returned", title: "Đã trả", tone: "neutral", loans: filteredLoans.filter((loan) => loan.status === "returned") },
+    ],
+    [filteredLoans]
+  );
 
   const urgentLoans = useMemo(
     () =>
@@ -424,6 +436,24 @@ function Borrow({ isAdmin = false }) {
     }
   };
 
+  const handleReservationToLoan = async (reservation) => {
+    if (!reservation?.id || !isAdmin) return;
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await updateReservationStatus(reservation.id, "fulfilled", {
+        createLoan: true,
+        dueDate: getDefaultDueDate(),
+      });
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Không thể chuyển đặt trước thành phiếu mượn.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const availableBooks = books.filter(
     (book) => (book.availableQuantity ?? book.quantity) > 0
   );
@@ -468,7 +498,7 @@ function Borrow({ isAdmin = false }) {
   ];
 
   return (
-    <div className="page-shell borrow-page">
+    <div className={`page-shell borrow-page page-density-${pageDensity}`}>
       <div className="page-title row-between borrow-hero">
         <div>
           <span className="page-eyebrow">
@@ -484,6 +514,22 @@ function Borrow({ isAdmin = false }) {
           </div>
         </div>
         <div className="button-group borrow-export-actions">
+          <div className="view-mode-toggle density-toggle" role="group" aria-label="Chọn mật độ hiển thị">
+            {[
+              ["comfortable", "Thoáng"],
+              ["compact", "Gọn"],
+            ].map(([mode, label]) => (
+              <button
+                className={pageDensity === mode ? "active" : ""}
+                type="button"
+                key={mode}
+                onClick={() => setPageDensity(mode)}
+                title={label}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button className="secondary-button" type="button" onClick={() => exportLoansAsJson(filteredLoans)}>
             <FileJson size={16} />
             <span>Xuất JSON</span>
@@ -708,6 +754,11 @@ function Borrow({ isAdmin = false }) {
                               Đã xử lý
                             </button>
                           )}
+                          {item.status === "waiting" && Number(item.availableQuantity || 0) > 0 && (
+                            <button className="small-button" type="button" onClick={() => handleReservationToLoan(item)} disabled={submitting}>
+                              Tạo phiếu mượn
+                            </button>
+                          )}
                           {item.status !== "cancelled" && (
                             <button className="small-button" type="button" onClick={() => handleReservationStatus(item, "cancelled")} disabled={submitting}>
                               Hủy
@@ -728,6 +779,52 @@ function Borrow({ isAdmin = false }) {
           )}
         </div>
       )}
+
+      <div className="table-card borrow-kanban-shell">
+        <div className="table-card-header row-between">
+          <div>
+            <h3>Kanban mượn / trả</h3>
+            <p>Theo dõi pipeline phiếu mượn theo trạng thái và xử lý nhanh ngay trên card.</p>
+          </div>
+          <div className="loan-summary">
+            {kanbanColumns.map((column) => (
+              <span key={column.id}>{column.title}: {column.loans.length}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="borrow-kanban-board">
+          {kanbanColumns.map((column) => (
+            <section className={`borrow-kanban-column ${column.tone}`} key={column.id}>
+              <div className="kanban-column-header">
+                <strong>{column.title}</strong>
+                <span>{column.loans.length}</span>
+              </div>
+              <div className="kanban-card-list">
+                {column.loans.slice(0, 6).map((loan) => (
+                  <article className={`kanban-loan-card ${loan.status}`} key={loan.id}>
+                    <strong>{loan.bookTitle}</strong>
+                    <span>{loan.readerName}</span>
+                    <small>{loan.status === "returned" ? "Đã hoàn tất" : getDueText(loan)}</small>
+                    {Number(loan.fineAmount || 0) > 0 && <em>{formatCurrency(loan.fineAmount)}</em>}
+                    {loan.status !== "returned" && (
+                      <div className="action-buttons">
+                        <button className="small-button" type="button" onClick={() => handleExtend(loan, 7)} disabled={submitting}>
+                          +7
+                        </button>
+                        <button className="small-button" type="button" onClick={() => handleReturn(loan)} disabled={submitting}>
+                          Trả
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+                {column.loans.length === 0 && <div className="kanban-empty">Không có phiếu.</div>}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
 
       <div className="table-card" style={{ marginTop: 24 }}>
         <div className="table-card-header row-between">
@@ -795,13 +892,17 @@ function Borrow({ isAdmin = false }) {
         </div>
 
         {loading ? (
-          <div className="skeleton-panel">
-            <span />
-            <span />
-            <span />
-          </div>
+          <LoadingState />
         ) : loans.length === 0 ? (
-          <div className="empty-state">Chưa có phiếu mượn nào.</div>
+          <EmptyState
+            title="Chưa có phiếu mượn nào"
+            description="Tạo phiếu mượn đầu tiên từ form phía trên để bắt đầu theo dõi pipeline."
+            action={
+              <button className="primary-button" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+                Tạo phiếu mượn
+              </button>
+            }
+          />
         ) : (
           <div className="table-responsive">
             <table className="table table-sm">

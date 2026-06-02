@@ -50,6 +50,34 @@ function clampPercentage(value) {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+function getInitial(value) {
+  return String(value || "?").trim().charAt(0).toUpperCase() || "?";
+}
+
+function ImageUrlPreview({ url, alt, label, fallbackText = "Ảnh", shape = "cover" }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (!url) return null;
+
+  return (
+    <div className={`inline-image-preview ${shape}`}>
+      {!failed ? (
+        <img src={url} alt={alt} onError={() => setFailed(true)} />
+      ) : (
+        <div className="inline-image-preview-empty">{fallbackText}</div>
+      )}
+      <span>
+        <strong>{failed ? "URL ảnh không hợp lệ" : label}</strong>
+        <small>{failed ? "Kiểm tra lại đường dẫn ảnh trước khi lưu." : "Ảnh sẽ được dùng trong hồ sơ hiển thị."}</small>
+      </span>
+    </div>
+  );
+}
+
 function getLoanBadgeClass(status) {
   if (status === "borrowed") return "badge bg-success";
   if (status === "overdue") return "badge bg-danger";
@@ -222,6 +250,7 @@ function Dashboard({
     overdue: 0,
     dueSoon: 0,
     totalFines: 0,
+    waitingReservations: 0,
     availableBooks: 0,
     lowStockBooks: [],
     popularBooks: [],
@@ -261,7 +290,7 @@ function Dashboard({
     description: "",
   });
 
-  const [readerForm, setReaderForm] = useState({ name: "", email: "", phone: "" });
+  const [readerForm, setReaderForm] = useState({ name: "", email: "", phone: "", profileImageUrl: "" });
   const [bulkImporting, setBulkImporting] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
@@ -282,6 +311,7 @@ function Dashboard({
         borrowed: data.borrowed ?? 0,
         overdue: data.overdue ?? 0,
         dueSoon: data.dueSoon ?? 0,
+        waitingReservations: data.waitingReservations ?? 0,
         totalFines: data.totalFines ?? 0,
         availableBooks: data.availableBooks ?? 0,
         missingImageBooks: data.missingImageBooks ?? 0,
@@ -316,12 +346,18 @@ function Dashboard({
       ? clampPercentage((summary.availableBooks / summary.totalBooks) * 100)
       : 0;
     const overdueRate = activeLoans ? clampPercentage((summary.overdue / activeLoans) * 100) : 0;
+    const lowStockPenalty = clampPercentage((summary.lowStockBooks.length / Math.max(summary.totalBooks, 1)) * 100);
+    const missingImagePenalty = clampPercentage((summary.missingImageBooks / Math.max(summary.totalBooks, 1)) * 60);
+    const score = clampPercentage(100 - overdueRate - lowStockPenalty - missingImagePenalty);
 
     return {
       activeLoans,
       borrowedRate,
       availableRate,
       overdueRate,
+      score,
+      lowStockPenalty,
+      missingImagePenalty,
     };
   }, [summary]);
 
@@ -389,7 +425,13 @@ function Dashboard({
   const submitReader = async (e) => {
     e.preventDefault();
     try {
-      await createReader({ name: readerForm.name, email: readerForm.email, phone: readerForm.phone });
+      await createReader({
+        name: readerForm.name,
+        email: readerForm.email,
+        phone: readerForm.phone,
+        profileImageUrl: readerForm.profileImageUrl,
+      });
+      setReaderForm({ name: "", email: "", phone: "", profileImageUrl: "" });
       closeReaderModal();
       await refreshStats();
     } catch (err) {
@@ -757,6 +799,78 @@ function Dashboard({
           <strong>{summary.missingImageBooks}</strong>
           <span>Sách thiếu ảnh</span>
         </button>
+        <button type="button" onClick={onNavigateToBorrow} className={summary.waitingReservations > 0 ? "warning" : "success"}>
+          <Clock3 size={22} />
+          <strong>{summary.waitingReservations}</strong>
+          <span>Đặt trước chờ</span>
+        </button>
+      </div>
+
+      <div className="dashboard-command-center mb-4">
+        <div className="command-center-header">
+          <div>
+            <span className="page-eyebrow">Điều hành hôm nay</span>
+            <h3>Trung tâm xử lý</h3>
+          </div>
+          <button className="secondary-button" type="button" onClick={refreshStats} disabled={loadingStats}>
+            <RefreshCw size={16} />
+            <span>{loadingStats ? "Đang tải..." : "Làm mới"}</span>
+          </button>
+        </div>
+        <div className="command-lane-grid">
+          <div className="command-lane danger">
+            <strong>Quá hạn</strong>
+            <span>{summary.overdue} phiếu cần xử lý</span>
+            <button type="button" onClick={onNavigateToOverdue}>Mở danh sách</button>
+          </div>
+          <div className="command-lane warning">
+            <strong>Sắp đến hạn</strong>
+            <span>{summary.dueSoon} phiếu trong 3 ngày tới</span>
+            <button type="button" onClick={onNavigateToBorrow}>Điều phối mượn trả</button>
+          </div>
+          <div className="command-lane primary">
+            <strong>Kho sách</strong>
+            <span>{summary.lowStockBooks.length} sách sắp hết, {summary.missingImageBooks} thiếu ảnh</span>
+            <button type="button" onClick={onNavigateToBooks}>Kiểm tra kho</button>
+          </div>
+          <div className="command-lane warning">
+            <strong>Phạt & đặt trước</strong>
+            <span>{summary.fineSummary.unpaid} phiếu phạt chưa thu, {summary.waitingReservations} đặt trước đang chờ</span>
+            <button type="button" onClick={onNavigateToBorrow}>Mở nghiệp vụ</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-insight-panel mb-4">
+        <div className="library-score-card">
+          <div className="library-score-ring" style={{ "--score": dashboardHealth.score }}>
+            <strong>{dashboardHealth.score}</strong>
+            <span>/100</span>
+          </div>
+          <div>
+            <span className="page-eyebrow">Library health score</span>
+            <h3>{dashboardHealth.score >= 80 ? "Vận hành ổn định" : dashboardHealth.score >= 55 ? "Cần theo dõi" : "Ưu tiên xử lý"}</h3>
+            <p>Điểm tổng hợp từ quá hạn, sách sắp hết và dữ liệu bìa sách còn thiếu.</p>
+          </div>
+        </div>
+
+        <div className="insight-priority-grid">
+          <button type="button" onClick={onNavigateToOverdue} className={summary.overdue > 0 ? "danger" : "success"}>
+            <strong>{summary.overdue}</strong>
+            <span>Quá hạn</span>
+            <small>{dashboardHealth.overdueRate}% trên phiếu hoạt động</small>
+          </button>
+          <button type="button" onClick={onNavigateToBooks} className={summary.lowStockBooks.length > 0 ? "warning" : "success"}>
+            <strong>{summary.lowStockBooks.length}</strong>
+            <span>Sắp hết</span>
+            <small>Ưu tiên kiểm kê kho</small>
+          </button>
+          <button type="button" onClick={onNavigateToBooks} className={summary.missingImageBooks > 0 ? "warning" : "success"}>
+            <strong>{summary.missingImageBooks}</strong>
+            <span>Thiếu ảnh</span>
+            <small>Cải thiện trải nghiệm tra cứu</small>
+          </button>
+        </div>
       </div>
 
       <div className="table-card mb-4">
@@ -1236,6 +1350,12 @@ function Dashboard({
                         <label className="form-label">Ảnh URL</label>
                         <input name="imageUrl" type="url" className="form-control" value={bookForm.imageUrl} onChange={handleBookChange} />
                       </div>
+                      <ImageUrlPreview
+                        url={bookForm.imageUrl}
+                        alt={`Ảnh bìa ${bookForm.title || "sách"}`}
+                        label="Xem trước ảnh sách"
+                        fallbackText={getInitial(bookForm.title)}
+                      />
                       <div className="mb-2">
                         <label className="form-label">Nhà xuất bản</label>
                         <input name="publisher" className="form-control" value={bookForm.publisher} onChange={handleBookChange} />
@@ -1288,6 +1408,24 @@ function Dashboard({
                     <label className="form-label">Số điện thoại</label>
                     <input name="phone" className="form-control" value={readerForm.phone} onChange={handleReaderChange} />
                   </div>
+                  <div className="mb-2">
+                    <label className="form-label">Ảnh profile</label>
+                    <input
+                      name="profileImageUrl"
+                      type="url"
+                      className="form-control"
+                      value={readerForm.profileImageUrl}
+                      onChange={handleReaderChange}
+                      required
+                    />
+                  </div>
+                  <ImageUrlPreview
+                    url={readerForm.profileImageUrl}
+                    alt={`Ảnh profile của ${readerForm.name || "độc giả"}`}
+                    label="Xem trước ảnh profile"
+                    fallbackText={getInitial(readerForm.name)}
+                    shape="avatar"
+                  />
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={closeReaderModal}>Hủy</button>

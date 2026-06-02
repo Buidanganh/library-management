@@ -20,13 +20,18 @@ const emptyForm = {
 function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   const [formData, setFormData] = useState(emptyForm);
   const [editingBookId, setEditingBookId] = useState(null);
+  const [coverPreviewFailed, setCoverPreviewFailed] = useState(false);
   const [books, setBooks] = useState([]);
   const [catalog, setCatalog] = useState({ categories: [], publishers: [] });
   const [loadingBooks, setLoadingBooks] = useState(true);
   const [booksError, setBooksError] = useState("");
+  const [formError, setFormError] = useState("");
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === "imageUrl") {
+      setCoverPreviewFailed(false);
+    }
     setFormData((prevState) => ({
       ...prevState,
       [name]: value,
@@ -36,6 +41,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   const resetForm = () => {
     setFormData(emptyForm);
     setEditingBookId(null);
+    setCoverPreviewFailed(false);
   };
 
   const loadBooks = async () => {
@@ -58,6 +64,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
   }, []);
 
   useEffect(() => {
+    setCoverPreviewFailed(false);
     if (editingBook) {
       setEditingBookId(editingBook.id);
       setFormData({
@@ -82,11 +89,12 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
     event.preventDefault();
 
     if (!formData.title || !formData.author || !formData.category || !formData.quantity) {
-      alert("Vui lòng điền đầy đủ các trường bắt buộc.");
+      setFormError("Vui lòng điền đầy đủ tên sách, tác giả, thể loại và số lượng.");
       return;
     }
 
     try {
+      setFormError("");
       await onSaveBook({
         id: editingBookId,
         title: formData.title,
@@ -105,7 +113,7 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
       await loadBooks();
       onCancel();
     } catch (err) {
-      alert(err.message || "Không thể lưu sách.");
+      setFormError(err.message || "Không thể lưu sách.");
     }
   };
 
@@ -157,16 +165,30 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
       </div>
 
       <form className="form-card book-editor-card" onSubmit={handleSubmit}>
+        {formError && <div className="form-error-banner">{formError}</div>}
         <div className="book-form-layout">
           <div className="book-cover-preview">
-            {formData.imageUrl ? (
-              <img src={formData.imageUrl} alt={`Ảnh bìa ${formData.title || "sách"}`} />
+            {formData.imageUrl && !coverPreviewFailed ? (
+              <img
+                src={formData.imageUrl}
+                alt={`Ảnh bìa ${formData.title || "sách"}`}
+                onError={() => setCoverPreviewFailed(true)}
+              />
             ) : (
-              <div className="book-cover-preview-empty">Ảnh sách</div>
+              <div className="book-cover-preview-empty">
+                {formData.imageUrl ? "URL ảnh không hợp lệ" : "Ảnh sách"}
+              </div>
+            )}
+            {coverPreviewFailed && (
+              <small className="image-preview-error">Kiểm tra lại đường dẫn ảnh trước khi lưu.</small>
             )}
           </div>
 
-          <div className="form-grid">
+          <div className="form-grid book-form-sectioned">
+            <div className="form-section-title full">
+              <strong>Thông tin chính</strong>
+              <span>Tên sách, ảnh bìa, tác giả và phân loại cơ bản.</span>
+            </div>
             <div className="form-group">
               <label>Tên sách</label>
               <input
@@ -215,6 +237,11 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
                   <option key={category} value={category} />
                 ))}
               </datalist>
+            </div>
+
+            <div className="form-section-title full">
+              <strong>Kho và xuất bản</strong>
+              <span>Số lượng, ISBN, vị trí kệ và thông tin nhà xuất bản.</span>
             </div>
 
             <div className="form-group">
@@ -290,6 +317,10 @@ function BookCreate({ onSaveBook, onCancel, onDeleteBook, editingBook }) {
             </div>
 
             <div className="form-group full">
+              <div className="form-section-title inline">
+                <strong>Mô tả</strong>
+                <span>Ghi chú ngắn để hỗ trợ tra cứu và quản lý.</span>
+              </div>
               <label>Mô tả</label>
               <textarea
                 rows="4"

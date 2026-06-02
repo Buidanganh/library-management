@@ -212,6 +212,52 @@ function ReaderProfile({ user }) {
     if (historyFilter === "all") return sortedLoans;
     return sortedLoans.filter((loan) => loan.status === historyFilter);
   }, [historyFilter, loans]);
+  const readerActionPlan = [
+    {
+      title: summary.overdue > 0 ? "Xử lý sách quá hạn" : "Theo dõi hạn trả",
+      value: summary.overdue > 0 ? `${summary.overdue} phiếu` : `${activeLoans.length} phiếu`,
+      detail: summary.overdue > 0 ? "Ưu tiên trả hoặc gia hạn sách quá hạn" : "Không có phiếu quá hạn hiện tại",
+      tone: summary.overdue > 0 ? "danger" : "success",
+    },
+    {
+      title: summary.unpaidFines > 0 ? "Thanh toán tiền phạt" : "Tiền phạt ổn định",
+      value: formatCurrency(summary.unpaidFines),
+      detail: summary.unpaidFines > 0 ? "Còn khoản phạt chưa thu" : "Không còn nợ phạt",
+      tone: summary.unpaidFines > 0 ? "warning" : "success",
+    },
+    {
+      title: "Tiến độ hạng đọc",
+      value: `${readerLevelProgress}%`,
+      detail: `${summary.totalLoans}/${nextReaderLevel.target} lượt để đạt ${nextReaderLevel.label}`,
+      tone: "primary",
+    },
+    {
+      title: "Đặt trước",
+      value: waitingReservations.length,
+      detail: waitingReservations.length > 0 ? "Có yêu cầu đang chờ" : "Chưa có hàng chờ",
+      tone: waitingReservations.length > 0 ? "warning" : "neutral",
+    },
+  ];
+  const readerNextBestActions = [
+    {
+      label: "Ưu tiên",
+      title: summary.overdue > 0 ? "Trả hoặc gia hạn sách quá hạn" : "Duy trì lịch trả đúng hạn",
+      detail: summary.overdue > 0 ? `${summary.overdue} phiếu đang quá hạn` : `${activeLoans.length} phiếu đang theo dõi`,
+      tone: summary.overdue > 0 ? "danger" : "success",
+    },
+    {
+      label: "Tài chính",
+      title: summary.unpaidFines > 0 ? "Xử lý tiền phạt chưa thu" : "Không có nợ phạt",
+      detail: summary.unpaidFines > 0 ? formatCurrency(summary.unpaidFines) : "Hồ sơ tài chính sạch",
+      tone: summary.unpaidFines > 0 ? "warning" : "success",
+    },
+    {
+      label: "Gắn kết",
+      title: `Tiến tới hạng ${nextReaderLevel.label}`,
+      detail: `Còn ${Math.max(0, nextReaderLevel.target - summary.totalLoans)} lượt mượn`,
+      tone: "primary",
+    },
+  ];
 
   const handleExtend = async (loan) => {
     const nextDueDate = new Date(new Date(loan.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -386,6 +432,32 @@ function ReaderProfile({ user }) {
                 <small>{summary.totalLoans} lượt mượn, {waitingReservations.length} đặt trước</small>
               </div>
             </article>
+          </section>
+
+          <section className="reader-action-plan">
+            {readerActionPlan.map((item) => (
+              <article className={`reader-action-card ${item.tone}`} key={item.title}>
+                <span>{item.title}</span>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </article>
+            ))}
+          </section>
+
+          <section className="reader-next-actions">
+            <div className="table-card-header">
+              <h3>Next-best actions</h3>
+              <p>Gợi ý xử lý nhanh dựa trên tình trạng mượn, phạt và mức hoạt động của độc giả.</p>
+            </div>
+            <div className="reader-next-actions-grid">
+              {readerNextBestActions.map((item) => (
+                <article className={`reader-next-action ${item.tone}`} key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.title}</strong>
+                  <small>{item.detail}</small>
+                </article>
+              ))}
+            </div>
           </section>
 
           <div className="table-card reader-profile-timeline-card" style={{ marginTop: 24 }}>

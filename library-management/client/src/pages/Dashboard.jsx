@@ -689,6 +689,78 @@ function Dashboard({
     },
   ].filter(Boolean);
 
+  const commandCenter = isAdmin
+    ? {
+        eyebrow: "Admin Command Center",
+        title: "Trung tâm điều hành thư viện",
+        detail: "Ưu tiên nghiệp vụ cho thủ thư: quá hạn, tồn kho, phạt và đặt trước.",
+        lanes: [
+          {
+            tone: "danger",
+            title: "Quá hạn",
+            detail: `${summary.overdue} phiếu cần xử lý`,
+            action: "Mở danh sách",
+            onClick: onNavigateToOverdue,
+          },
+          {
+            tone: "warning",
+            title: "Sắp đến hạn",
+            detail: `${summary.dueSoon} phiếu trong 3 ngày tới`,
+            action: "Điều phối mượn trả",
+            onClick: onNavigateToBorrow,
+          },
+          {
+            tone: "primary",
+            title: "Kho sách",
+            detail: `${summary.lowStockBooks.length} sách sắp hết, ${summary.missingImageBooks} thiếu ảnh`,
+            action: "Kiểm tra kho",
+            onClick: onNavigateToBooks,
+          },
+          {
+            tone: "warning",
+            title: "Phạt & đặt trước",
+            detail: `${summary.fineSummary.unpaid} phiếu phạt chưa thu, ${summary.waitingReservations} đặt trước đang chờ`,
+            action: "Mở nghiệp vụ",
+            onClick: onNavigateToBorrow,
+          },
+        ],
+      }
+    : {
+        eyebrow: "Reader Command Center",
+        title: "Trung tâm hồ sơ đọc",
+        detail: "Tập trung vào sách đang mượn, hạn trả, tiền phạt và lịch sử đọc của bạn.",
+        lanes: [
+          {
+            tone: summary.overdue > 0 ? "danger" : "success",
+            title: "Sách quá hạn",
+            detail: `${summary.overdue} phiếu cần xử lý`,
+            action: "Xem quá hạn",
+            onClick: onNavigateToOverdue,
+          },
+          {
+            tone: summary.dueSoon > 0 ? "warning" : "success",
+            title: "Sắp đến hạn",
+            detail: `${summary.dueSoon} phiếu trong 3 ngày tới`,
+            action: "Xem mượn trả",
+            onClick: onNavigateToBorrow,
+          },
+          {
+            tone: "primary",
+            title: "Tìm sách",
+            detail: `${summary.availableBooks} sách đang có thể mượn`,
+            action: "Mở kho sách",
+            onClick: onNavigateToBooks,
+          },
+          {
+            tone: summary.totalFines > 0 ? "warning" : "success",
+            title: "Tiền phạt",
+            detail: `${formatCurrency(summary.totalFines)} phạt dự kiến`,
+            action: "Kiểm tra hồ sơ",
+            onClick: onNavigateToBorrow,
+          },
+        ],
+      };
+
   const statusChartTotal = Math.max(1, summary.borrowed + summary.overdue + summary.dueSoon);
   const statusChartItems = [
     { label: "Đang mượn", value: summary.borrowed, tone: "success" },
@@ -705,6 +777,70 @@ function Dashboard({
       Math.max(Number(item.paid || 0), Number(item.unpaid || 0), Number(item.waived || 0))
     )
   );
+  const operatingSnapshot = [
+    {
+      label: "Ưu tiên hôm nay",
+      value: summary.overdue > 0 ? `${summary.overdue} quá hạn` : `${summary.dueSoon} sắp đến hạn`,
+      detail: summary.overdue > 0 ? "Xử lý phiếu quá hạn trước" : "Nhắc lịch trả sách sớm",
+      tone: summary.overdue > 0 ? "danger" : summary.dueSoon > 0 ? "warning" : "success",
+      onClick: summary.overdue > 0 ? onNavigateToOverdue : onNavigateToBorrow,
+    },
+    {
+      label: "Kho sách",
+      value: `${summary.availableBooks}/${summary.totalBooks}`,
+      detail: `${summary.lowStockBooks.length} sách sắp hết, ${summary.missingImageBooks} thiếu ảnh`,
+      tone: summary.lowStockBooks.length || summary.missingImageBooks ? "warning" : "success",
+      onClick: onNavigateToBooks,
+    },
+    {
+      label: "Đặt trước",
+      value: summary.waitingReservations,
+      detail: "Yêu cầu đang chờ xử lý",
+      tone: summary.waitingReservations > 0 ? "warning" : "success",
+      onClick: onNavigateToBorrow,
+    },
+    {
+      label: "Tiền phạt",
+      value: formatCurrency(summary.totalFines),
+      detail: `${summary.fineSummary.unpaid} phiếu chưa thu`,
+      tone: summary.fineSummary.unpaid > 0 ? "danger" : "success",
+      onClick: onNavigateToBorrow,
+    },
+  ];
+  const dashboardSlaItems = [
+    {
+      label: "Quá hạn",
+      current: summary.overdue,
+      target: "0 phiếu",
+      detail: summary.overdue > 0 ? "Cần kéo về 0 trước cuối ngày" : "Đang đạt mục tiêu",
+      tone: summary.overdue > 0 ? "danger" : "success",
+      percent: summary.overdue > 0 ? Math.max(10, Math.min(100, summary.overdue * 18)) : 100,
+    },
+    {
+      label: "Sắp đến hạn",
+      current: summary.dueSoon,
+      target: "Nhắc trước 3 ngày",
+      detail: summary.dueSoon > 0 ? "Có phiếu cần nhắc độc giả" : "Không có phiếu cần nhắc",
+      tone: summary.dueSoon > 0 ? "warning" : "success",
+      percent: summary.dueSoon > 0 ? Math.max(12, Math.min(100, summary.dueSoon * 16)) : 100,
+    },
+    {
+      label: "Dữ liệu bìa sách",
+      current: summary.missingImageBooks,
+      target: "0 thiếu ảnh",
+      detail: summary.missingImageBooks > 0 ? "Bổ sung ảnh để cải thiện tra cứu" : "Đã đầy đủ ảnh bìa",
+      tone: summary.missingImageBooks > 0 ? "warning" : "success",
+      percent: summary.totalBooks ? clampPercentage(((summary.totalBooks - summary.missingImageBooks) / summary.totalBooks) * 100) : 100,
+    },
+    {
+      label: "Tiền phạt chưa thu",
+      current: summary.fineSummary.unpaid,
+      target: "0 phiếu",
+      detail: summary.fineSummary.unpaid > 0 ? "Cần thu hoặc miễn phạt" : "Không có nợ phạt",
+      tone: summary.fineSummary.unpaid > 0 ? "danger" : "success",
+      percent: summary.fineSummary.unpaid > 0 ? Math.max(10, Math.min(100, summary.fineSummary.unpaid * 18)) : 100,
+    },
+  ];
 
   return (
     <div className="page-shell dashboard-page">
@@ -806,11 +942,38 @@ function Dashboard({
         </button>
       </div>
 
+      <div className="operating-snapshot-grid mb-4">
+        {operatingSnapshot.map((item) => (
+          <button className={`operating-snapshot-card ${item.tone}`} type="button" key={item.label} onClick={item.onClick}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="dashboard-sla-strip mb-4">
+        {dashboardSlaItems.map((item) => (
+          <section className={`dashboard-sla-card ${item.tone}`} key={item.label}>
+            <div>
+              <span>{item.label}</span>
+              <strong>{item.current}</strong>
+              <small>Mục tiêu: {item.target}</small>
+            </div>
+            <div className="dashboard-sla-meter" aria-hidden="true">
+              <span style={{ width: `${item.percent}%` }} />
+            </div>
+            <p>{item.detail}</p>
+          </section>
+        ))}
+      </div>
+
       <div className="dashboard-command-center mb-4">
         <div className="command-center-header">
           <div>
-            <span className="page-eyebrow">Điều hành hôm nay</span>
-            <h3>Trung tâm xử lý</h3>
+            <span className="page-eyebrow">{commandCenter.eyebrow}</span>
+            <h3>{commandCenter.title}</h3>
+            <p>{commandCenter.detail}</p>
           </div>
           <button className="secondary-button" type="button" onClick={refreshStats} disabled={loadingStats}>
             <RefreshCw size={16} />
@@ -818,26 +981,13 @@ function Dashboard({
           </button>
         </div>
         <div className="command-lane-grid">
-          <div className="command-lane danger">
-            <strong>Quá hạn</strong>
-            <span>{summary.overdue} phiếu cần xử lý</span>
-            <button type="button" onClick={onNavigateToOverdue}>Mở danh sách</button>
-          </div>
-          <div className="command-lane warning">
-            <strong>Sắp đến hạn</strong>
-            <span>{summary.dueSoon} phiếu trong 3 ngày tới</span>
-            <button type="button" onClick={onNavigateToBorrow}>Điều phối mượn trả</button>
-          </div>
-          <div className="command-lane primary">
-            <strong>Kho sách</strong>
-            <span>{summary.lowStockBooks.length} sách sắp hết, {summary.missingImageBooks} thiếu ảnh</span>
-            <button type="button" onClick={onNavigateToBooks}>Kiểm tra kho</button>
-          </div>
-          <div className="command-lane warning">
-            <strong>Phạt & đặt trước</strong>
-            <span>{summary.fineSummary.unpaid} phiếu phạt chưa thu, {summary.waitingReservations} đặt trước đang chờ</span>
-            <button type="button" onClick={onNavigateToBorrow}>Mở nghiệp vụ</button>
-          </div>
+          {commandCenter.lanes.map((lane) => (
+            <div className={`command-lane ${lane.tone}`} key={lane.title}>
+              <strong>{lane.title}</strong>
+              <span>{lane.detail}</span>
+              <button type="button" onClick={lane.onClick}>{lane.action}</button>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -257,6 +257,13 @@ function BookDetailPanel({
       </div>
 
       <div className="book-detail-content">
+        <div className="book-drawer-topbar">
+          <span>Book detail drawer</span>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Đóng chi tiết sách">
+            ×
+          </button>
+        </div>
+
         <div className="row-between">
           <div>
             <h3>{book.title}</h3>
@@ -284,6 +291,31 @@ function BookDetailPanel({
               {item.label}
             </span>
           ))}
+        </div>
+
+        <div className="book-drawer-action-strip">
+          {canBorrow && (
+            <>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => onBorrowBook(book)}
+                disabled={borrowing || availableQuantity <= 0 || status === "blocked"}
+              >
+                {borrowing ? "Đang mượn..." : "Mượn sách"}
+              </button>
+              {(availableQuantity <= 0 || status === "blocked") && (
+                <button className="secondary-button" type="button" onClick={() => onReserveBook(book)} disabled={borrowing}>
+                  Đặt trước
+                </button>
+              )}
+            </>
+          )}
+          {canManage && (
+            <button className="secondary-button" type="button" onClick={() => onEditBook(book)}>
+              Sửa sách
+            </button>
+          )}
         </div>
 
         <div className="drawer-tab-list" role="tablist">
@@ -860,6 +892,71 @@ function Books({
       icon: ImageOff,
     },
   ];
+  const bookDiscoverySnapshot = [
+    {
+      label: "Tìm sách còn hàng",
+      value: bookSummary.available,
+      detail: "Lọc nhanh các sách có thể mượn ngay",
+      tone: "success",
+      action: () => setStockFilter("available"),
+    },
+    {
+      label: "Cần bổ sung dữ liệu",
+      value: bookSummary.missingImage,
+      detail: "Sách thiếu ảnh bìa trong danh mục",
+      tone: bookSummary.missingImage > 0 ? "warning" : "success",
+      action: () => setImageFilter("missing-image"),
+    },
+    {
+      label: "Được mượn nhiều",
+      value: popularBookSpotlight.length,
+      detail: "Mở nhóm sách có sức hút cao",
+      tone: "primary",
+      action: () => setSortMode("available-desc"),
+    },
+    {
+      label: "Wishlist",
+      value: wishlistBooks.length,
+      detail: "Sách độc giả đang quan tâm",
+      tone: wishlistBooks.length > 0 ? "primary" : "neutral",
+      action: () => setViewMode("grid"),
+    },
+  ];
+  const collectionLanes = [
+    {
+      label: "Sẵn sàng mượn",
+      detail: "Còn hàng, trạng thái tốt",
+      tone: "success",
+      books: books
+        .filter((book) => getBookStatus(book) === "available" && (book.condition || "good") === "good")
+        .slice(0, 4),
+      action: () => {
+        setStockFilter("available");
+        setConditionFilter("good");
+      },
+    },
+    {
+      label: "Cần kiểm kê",
+      detail: "Sắp hết, hết hoặc đang sửa/mất",
+      tone: "warning",
+      books: books.filter((book) => ["low", "out", "blocked"].includes(getBookStatus(book))).slice(0, 4),
+      action: () => setStockFilter("attention"),
+    },
+    {
+      label: "Thiếu dữ liệu",
+      detail: "Thiếu ảnh bìa hoặc ISBN",
+      tone: "danger",
+      books: books.filter((book) => !hasBookImage(book) || !String(book.isbn || "").trim()).slice(0, 4),
+      action: () => setImageFilter("missing-image"),
+    },
+    {
+      label: "Gợi ý khám phá",
+      detail: "Sách nổi bật theo lịch sử mượn",
+      tone: "primary",
+      books: popularBookSpotlight.slice(0, 4),
+      action: () => setViewMode("grid"),
+    },
+  ];
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -1184,6 +1281,27 @@ function Books({
                 </div>
               );
             })}
+          </div>
+
+          <div className="book-discovery-snapshot">
+            {bookDiscoverySnapshot.map((item) => (
+              <button className={`book-discovery-card ${item.tone}`} type="button" key={item.label} onClick={item.action}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="book-collection-lanes">
+            {collectionLanes.map((lane) => (
+              <button className={`book-collection-card ${lane.tone}`} type="button" key={lane.label} onClick={lane.action}>
+                <span>{lane.label}</span>
+                <strong>{lane.books.length}</strong>
+                <small>{lane.detail}</small>
+                <em>{lane.books.map((book) => book.title).join(", ") || "Không có sách trong nhóm này"}</em>
+              </button>
+            ))}
           </div>
 
           {canManage && (
@@ -1571,6 +1689,25 @@ function Books({
                   <p>Áp dụng thể loại, nhà xuất bản hoặc vị trí kệ cho các sách đang hiển thị.</p>
                 </div>
                 <span className="badge">{bulkTargetBooks.length} sách</span>
+              </div>
+
+              <div className="bulk-workspace-scope">
+                <span>
+                  <strong>{selectedBookIds.length > 0 ? "Theo lựa chọn" : "Theo bộ lọc"}</strong>
+                  Phạm vi áp dụng
+                </span>
+                <span>
+                  <strong>{selectedBookIds.length}</strong>
+                  Sách đã chọn
+                </span>
+                <span>
+                  <strong>{filteredBooks.length}</strong>
+                  Đang hiển thị theo lọc
+                </span>
+                <span>
+                  <strong>{importRows.length}</strong>
+                  Dòng import preview
+                </span>
               </div>
 
               <div className="form-grid">

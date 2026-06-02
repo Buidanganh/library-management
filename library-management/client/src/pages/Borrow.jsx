@@ -131,6 +131,8 @@ function Borrow({ isAdmin = false }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [readerSearch, setReaderSearch] = useState("");
+  const [bookSearch, setBookSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [quickFilter, setQuickFilter] = useState("");
   const [pageDensity, setPageDensity] = useState("comfortable");
@@ -192,7 +194,30 @@ function Borrow({ isAdmin = false }) {
   );
 
   const selectedReaderActiveLoans = Number(selectedReader?.booksBorrowed || 0);
+  const selectedReaderActiveLoanRows = useMemo(
+    () =>
+      loans
+        .filter((loan) => loan.readerId === Number(formData.readerId) && loan.status !== "returned")
+        .sort((first, second) => new Date(first.dueDate) - new Date(second.dueDate)),
+    [loans, formData.readerId]
+  );
+  const selectedReaderOverdueLoans = useMemo(
+    () => selectedReaderActiveLoanRows.filter((loan) => loan.status === "overdue"),
+    [selectedReaderActiveLoanRows]
+  );
+  const selectedReaderDueSoonLoans = useMemo(
+    () => selectedReaderActiveLoanRows.filter(isDueSoon),
+    [selectedReaderActiveLoanRows]
+  );
+  const selectedBookActiveLoanRows = useMemo(
+    () =>
+      loans
+        .filter((loan) => loan.bookId === Number(formData.bookId) && loan.status !== "returned")
+        .sort((first, second) => new Date(first.dueDate) - new Date(second.dueDate)),
+    [loans, formData.bookId]
+  );
   const selectedReaderReachedLimit =
+    selectedReaderActiveLoanRows.length >= MAX_ACTIVE_LOANS_PER_READER ||
     selectedReaderActiveLoans >= MAX_ACTIVE_LOANS_PER_READER;
 
   const selectedReaderAlreadyBorrowingBook = useMemo(
@@ -268,6 +293,60 @@ function Borrow({ isAdmin = false }) {
         })
         .slice(0, 5),
     [loans]
+  );
+
+  const availableBooks = useMemo(
+    () => books.filter((book) => (book.availableQuantity ?? book.quantity) > 0),
+    [books]
+  );
+
+  const searchableReaders = useMemo(() => {
+    const query = readerSearch.trim().toLowerCase();
+    if (!query) return readers;
+
+    return readers.filter((reader) =>
+      [reader.name, reader.email, reader.phone, String(reader.id)].some((value) =>
+        String(value || "").toLowerCase().includes(query)
+      )
+    );
+  }, [readers, readerSearch]);
+
+  const searchableAvailableBooks = useMemo(() => {
+    const query = bookSearch.trim().toLowerCase();
+    if (!query) return availableBooks;
+
+    return availableBooks.filter((book) =>
+      [book.title, book.author, book.category, book.isbn, book.shelfLocation].some((value) =>
+        String(value || "").toLowerCase().includes(query)
+      )
+    );
+  }, [availableBooks, bookSearch]);
+
+  const borrowPreviewTimeline = useMemo(
+    () =>
+      [
+        {
+          title: "Tạo phiếu",
+          detail: selectedReader && selectedBook ? `${selectedReader.name} mượn ${selectedBook.title}` : "Chọn độc giả và sách",
+          tone: selectedReader && selectedBook ? "success" : "neutral",
+        },
+        {
+          title: "Hạn trả",
+          detail: formData.dueDate ? `${formData.dueDate} (${getDueText({ status: "borrowed", dueDate: formData.dueDate })})` : "Chưa chọn hạn trả",
+          tone: formData.dueDate ? "primary" : "neutral",
+        },
+        {
+          title: "Kiểm tra rủi ro",
+          detail:
+            selectedReaderOverdueLoans.length > 0
+              ? `${selectedReaderOverdueLoans.length} phiếu quá hạn`
+              : selectedReaderReachedLimit
+              ? "Đạt giới hạn mượn"
+              : "Có thể tạo phiếu",
+          tone: selectedReaderOverdueLoans.length > 0 || selectedReaderReachedLimit ? "danger" : "success",
+        },
+      ],
+    [formData.dueDate, selectedBook, selectedReader, selectedReaderOverdueLoans.length, selectedReaderReachedLimit]
   );
 
   const handleChange = (event) => {
@@ -454,10 +533,6 @@ function Borrow({ isAdmin = false }) {
     }
   };
 
-  const availableBooks = books.filter(
-    (book) => (book.availableQuantity ?? book.quantity) > 0
-  );
-
   const canSubmitBorrow =
     !submitting &&
     Boolean(formData.readerId) &&
@@ -465,6 +540,86 @@ function Borrow({ isAdmin = false }) {
     Boolean(formData.dueDate) &&
     !selectedReaderReachedLimit &&
     !selectedReaderAlreadyBorrowingBook;
+  const workflowReadiness = [
+    {
+      label: "Độc giả",
+      value: selectedReader ? selectedReader.name : "Chưa chọn",
+      detail: selectedReader
+        ? `${selectedReaderActiveLoanRows.length}/${MAX_ACTIVE_LOANS_PER_READER} phiếu đang mượn`
+        : "Tìm và chọn độc giả",
+      tone: selectedReader ? "success" : "neutral",
+    },
+    {
+      label: "Sách",
+      value: selectedBook ? selectedBook.title : "Chưa chọn",
+      detail: selectedBook
+        ? `Còn ${selectedBook.availableQuantity ?? selectedBook.quantity} bản`
+        : "Chọn sách còn hàng",
+      tone: selectedBook ? "success" : "neutral",
+    },
+    {
+      label: "Rủi ro",
+      value:
+        selectedReaderOverdueLoans.length > 0
+          ? `${selectedReaderOverdueLoans.length} quá hạn`
+          : selectedReaderReachedLimit
+          ? "Đạt giới hạn"
+          : selectedReaderAlreadyBorrowingBook
+          ? "Trùng sách"
+          : "Ổn",
+      detail: selectedReaderDueSoonLoans.length > 0 ? `${selectedReaderDueSoonLoans.length} phiếu sắp đến hạn` : "Không có cảnh báo phụ",
+      tone:
+        selectedReaderOverdueLoans.length > 0 || selectedReaderReachedLimit || selectedReaderAlreadyBorrowingBook
+          ? "danger"
+          : selectedReaderDueSoonLoans.length > 0
+          ? "warning"
+          : "success",
+    },
+    {
+      label: "Trạng thái",
+      value: canSubmitBorrow ? "Sẵn sàng" : "Chưa đủ",
+      detail: canSubmitBorrow ? "Có thể tạo phiếu mượn" : "Hoàn tất các bước bắt buộc",
+      tone: canSubmitBorrow ? "primary" : "neutral",
+    },
+  ];
+  const workflowShortcuts = [
+    {
+      label: "Đang mượn",
+      count: loanSummary.borrowed,
+      tone: "success",
+      action: () => {
+        setStatusFilter("borrowed");
+        setQuickFilter("");
+      },
+    },
+    {
+      label: "Sắp đến hạn",
+      count: loanSummary.dueSoon,
+      tone: loanSummary.dueSoon > 0 ? "warning" : "success",
+      action: () => {
+        setStatusFilter("");
+        setQuickFilter("due-soon");
+      },
+    },
+    {
+      label: "Quá hạn",
+      count: loanSummary.overdue,
+      tone: loanSummary.overdue > 0 ? "danger" : "success",
+      action: () => {
+        setStatusFilter("overdue");
+        setQuickFilter("");
+      },
+    },
+    {
+      label: "Phạt chưa thu",
+      count: loans.filter((loan) => Number(loan.fineAmount || 0) > 0 && loan.fineStatus === "unpaid").length,
+      tone: "warning",
+      action: () => {
+        setStatusFilter("");
+        setQuickFilter("fine-unpaid");
+      },
+    },
+  ];
 
   const loanKpis = [
     {
@@ -562,6 +717,25 @@ function Borrow({ isAdmin = false }) {
         })}
       </div>
 
+      <div className="borrow-workflow-readiness">
+        {workflowReadiness.map((item) => (
+          <section className={`workflow-readiness-card ${item.tone}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </section>
+        ))}
+      </div>
+
+      <div className="borrow-workflow-shortcuts">
+        {workflowShortcuts.map((item) => (
+          <button className={`workflow-shortcut ${item.tone}`} type="button" key={item.label} onClick={item.action}>
+            <span>{item.label}</span>
+            <strong>{item.count}</strong>
+          </button>
+        ))}
+      </div>
+
       <div className="borrow-operations-grid">
         <div className="table-card borrow-form-card">
           <div className="table-card-header">
@@ -571,26 +745,46 @@ function Borrow({ isAdmin = false }) {
           <form className="form-grid" onSubmit={handleBorrow}>
             <div className="form-group">
               <label>Độc giả</label>
+              <div className="borrow-picker-search">
+                <Search size={16} />
+                <input
+                  type="search"
+                  value={readerSearch}
+                  onChange={(event) => setReaderSearch(event.target.value)}
+                  placeholder="Tìm theo tên, email, SĐT hoặc mã độc giả"
+                />
+              </div>
               <select name="readerId" value={formData.readerId} onChange={handleChange}>
                 <option value="">Chọn độc giả</option>
-                {readers.map((reader) => (
+                {searchableReaders.map((reader) => (
                   <option key={reader.id} value={reader.id}>
                     {reader.name} - đang mượn {reader.booksBorrowed ?? 0}/{MAX_ACTIVE_LOANS_PER_READER}
                   </option>
                 ))}
               </select>
+              <small>{searchableReaders.length} độc giả phù hợp</small>
             </div>
 
             <div className="form-group">
               <label>Sách</label>
+              <div className="borrow-picker-search">
+                <Search size={16} />
+                <input
+                  type="search"
+                  value={bookSearch}
+                  onChange={(event) => setBookSearch(event.target.value)}
+                  placeholder="Tìm theo tên sách, tác giả, thể loại hoặc ISBN"
+                />
+              </div>
               <select name="bookId" value={formData.bookId} onChange={handleChange}>
                 <option value="">Chọn sách</option>
-                {availableBooks.map((book) => (
+                {searchableAvailableBooks.map((book) => (
                   <option key={book.id} value={book.id}>
                     {book.title} - Còn lại {book.availableQuantity ?? book.quantity}
                   </option>
                 ))}
               </select>
+              <small>{searchableAvailableBooks.length} sách còn hàng phù hợp</small>
             </div>
 
             <div className="form-group">
@@ -634,6 +828,77 @@ function Borrow({ isAdmin = false }) {
                 <div className="error-message">Độc giả đang mượn sách đã chọn.</div>
               )}
             </div>
+
+            {(selectedReaderOverdueLoans.length > 0 || selectedReaderDueSoonLoans.length > 0) && (
+              <div className="form-group full">
+                {selectedReaderOverdueLoans.length > 0 ? (
+                  <div className="error-message">
+                    <AlertTriangle size={16} />
+                    Độc giả đang có {selectedReaderOverdueLoans.length} phiếu quá hạn. Nên xử lý hoặc gia hạn trước khi tạo phiếu mới.
+                  </div>
+                ) : (
+                  <div className="success-message muted-message">
+                    Độc giả có {selectedReaderDueSoonLoans.length} phiếu sắp đến hạn trong 3 ngày.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(selectedReader || selectedBook) && (
+              <div className="form-group full borrow-preview-panel">
+                <div className="borrow-preview-grid">
+                  <section>
+                    <span className="preview-label">Độc giả</span>
+                    <strong>{selectedReader?.name || "Chưa chọn"}</strong>
+                    <small>
+                      {selectedReader
+                        ? `${selectedReaderActiveLoanRows.length}/${MAX_ACTIVE_LOANS_PER_READER} phiếu đang mượn`
+                        : "Tìm và chọn độc giả để xem trạng thái"}
+                    </small>
+                    {selectedReaderActiveLoanRows.length > 0 && (
+                      <div className="borrow-mini-list">
+                        {selectedReaderActiveLoanRows.slice(0, 3).map((loan) => (
+                          <span key={loan.id}>
+                            {loan.bookTitle} - {loan.status === "overdue" ? "Quá hạn" : getDueText(loan)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section>
+                    <span className="preview-label">Sách</span>
+                    <strong>{selectedBook?.title || "Chưa chọn"}</strong>
+                    <small>
+                      {selectedBook
+                        ? `Còn ${selectedBook.availableQuantity ?? selectedBook.quantity} bản, ${selectedBookActiveLoanRows.length} bản đang mượn`
+                        : "Tìm sách còn hàng để tạo phiếu"}
+                    </small>
+                    {selectedBookActiveLoanRows.length > 0 && (
+                      <div className="borrow-mini-list">
+                        {selectedBookActiveLoanRows.slice(0, 3).map((loan) => (
+                          <span key={loan.id}>
+                            {loan.readerName} - {getDueText(loan)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </div>
+
+                <div className="borrow-preview-timeline">
+                  {borrowPreviewTimeline.map((item) => (
+                    <div className={`borrow-preview-step ${item.tone}`} key={item.title}>
+                      <span />
+                      <div>
+                        <strong>{item.title}</strong>
+                        <small>{item.detail}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={!canSubmitBorrow}>

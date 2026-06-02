@@ -1029,6 +1029,25 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook, canManageRoles 
             </button>
           </div>
 
+          <div className="reader-360-kpi-strip">
+            <span>
+              <strong>{selectedReaderSummary.total}</strong>
+              Tổng phiếu
+            </span>
+            <span>
+              <strong>{selectedReaderSummary.borrowed}</strong>
+              Đang mượn
+            </span>
+            <span className={selectedReaderSummary.overdue > 0 ? "danger" : "success"}>
+              <strong>{selectedReaderSummary.overdue}</strong>
+              Quá hạn
+            </span>
+            <span className={selectedReaderSummary.totalFines > 0 ? "warning" : "success"}>
+              <strong>{formatCurrency(selectedReaderSummary.totalFines)}</strong>
+              Phạt dự kiến
+            </span>
+          </div>
+
           <div className="reader-detail-panel">
             <div className="reader-detail-profile-card">
               <ReaderAvatar reader={selectedReader} className="reader-avatar-large" />
@@ -1212,7 +1231,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook, canManageRoles 
         <div className="app-modal-backdrop" role="dialog" aria-modal="true">
           <form className="app-modal activity-modal" onSubmit={submitBulkReaders}>
             <h3>Nhập nhiều độc giả</h3>
-            <p>Hỗ trợ CSV hoặc JSON với các trường: name, email, phone.</p>
+            <p>Hỗ trợ CSV hoặc JSON với các trường: name, email, phone, profileImageUrl.</p>
             <div className="form-group">
               <label>File CSV/JSON</label>
               <input type="file" accept=".csv,.json" onChange={handleBulkFileChange} />
@@ -1224,7 +1243,7 @@ function Readers({ onNavigateToCreate, onEditBook, onDeleteBook, canManageRoles 
                 rows="7"
                 value={bulkInput}
                 onChange={handleBulkInputChange}
-                placeholder='[{"name":"Nguyễn Văn A","email":"a@example.com","phone":"0901000000"}]'
+                placeholder='[{"name":"Nguyễn Văn A","email":"a@example.com","phone":"0901000000","profileImageUrl":"https://example.com/avatar.jpg"}]'
               />
             </div>
             {bulkError && <div className="error-message">{bulkError}</div>}

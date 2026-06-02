@@ -1196,6 +1196,18 @@
       "fineStatus": "none",
       "finePaidDate": null,
       "fineHandledBy": ""
+    },
+    {
+      "id": 9,
+      "readerId": 4,
+      "bookId": 6,
+      "borrowedDate": "2026-06-02",
+      "dueDate": "2026-06-16",
+      "returnedDate": null,
+      "status": "borrowed",
+      "fineStatus": "none",
+      "finePaidDate": null,
+      "fineHandledBy": ""
     }
   ],
   "reservations": [],
@@ -1256,6 +1268,118 @@
     ]
   },
   "activities": [
+    {
+      "id": 12,
+      "type": "loan.created",
+      "message": "Tao phieu muon #9: Bùi Đăng Anh muon Mắt Biếc.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-02T15:51:16.792Z",
+      "metadata": {
+        "loanId": 9,
+        "readerId": 4,
+        "bookId": 6,
+        "dueDate": "2026-06-16"
+      }
+    },
+    {
+      "id": 11,
+      "type": "reader.updated",
+      "message": "Cap nhat doc gia: Bùi Đăng Anh.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-02T14:46:54.403Z",
+      "metadata": {
+        "readerId": 4,
+        "email": "buidanganh@gmail.com",
+        "readerName": "Bùi Đăng Anh",
+        "before": {
+          "id": 4,
+          "name": "Bùi Đăng Anh",
+          "email": "buidanganh@gmail.com",
+          "phone": "0912345678"
+        },
+        "after": {
+          "id": 4,
+          "name": "Bùi Đăng Anh",
+          "email": "buidanganh@gmail.com",
+          "phone": "0912345678"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "reader.role_updated",
+      "message": "Cap nhat vai tro tai khoan doc gia: Bùi Đăng Anh thanh user.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-02T14:46:09.058Z",
+      "metadata": {
+        "readerId": 4,
+        "readerName": "Bùi Đăng Anh",
+        "userId": 2,
+        "email": "buidanganh@gmail.com",
+        "before": {
+          "id": 2,
+          "status": "active",
+          "role": "librarian"
+        },
+        "after": {
+          "id": 2,
+          "status": "active",
+          "role": "user"
+        },
+        "changedStatus": false,
+        "changedRole": true
+      }
+    },
+    {
+      "id": 9,
+      "type": "reader.role_updated",
+      "message": "Cap nhat vai tro tai khoan doc gia: Bùi Đăng Anh thanh librarian.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-02T14:46:07.104Z",
+      "metadata": {
+        "readerId": 4,
+        "readerName": "Bùi Đăng Anh",
+        "userId": 2,
+        "email": "buidanganh@gmail.com",
+        "before": {
+          "id": 2,
+          "status": "active",
+          "role": "admin"
+        },
+        "after": {
+          "id": 2,
+          "status": "active",
+          "role": "librarian"
+        },
+        "changedStatus": false,
+        "changedRole": true
+      }
+    },
+    {
+      "id": 8,
+      "type": "reader.role_updated",
+      "message": "Cap nhat vai tro tai khoan doc gia: Bùi Đăng Anh thanh admin.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-02T14:46:04.979Z",
+      "metadata": {
+        "readerId": 4,
+        "readerName": "Bùi Đăng Anh",
+        "userId": 2,
+        "email": "buidanganh@gmail.com",
+        "before": {
+          "id": 2,
+          "status": "active",
+          "role": "user"
+        },
+        "after": {
+          "id": 2,
+          "status": "active",
+          "role": "admin"
+        },
+        "changedStatus": false,
+        "changedRole": true
+      }
+    },
     {
       "id": 7,
       "type": "loan.created",

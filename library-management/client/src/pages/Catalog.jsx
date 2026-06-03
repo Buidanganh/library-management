@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { BookOpen, Building2, LibraryBig, Plus, Sparkles, Tags } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Building2, LibraryBig, Plus, Search, Sparkles, Tags } from "lucide-react";
 import { createCatalogItem, deleteCatalogItem, getCatalog } from "../services/api";
 
 const typeLabels = {
@@ -10,9 +10,28 @@ const typeLabels = {
 function Catalog() {
   const [catalog, setCatalog] = useState({ categories: [], publishers: [] });
   const [formData, setFormData] = useState({ type: "categories", name: "" });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const filteredCatalog = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const nextCatalog = { categories: [], publishers: [] };
+
+    Object.keys(nextCatalog).forEach((type) => {
+      if (typeFilter !== "all" && typeFilter !== type) return;
+      nextCatalog[type] = (catalog[type] || []).filter((name) =>
+        !query || String(name).toLowerCase().includes(query)
+      );
+    });
+
+    return nextCatalog;
+  }, [catalog, searchQuery, typeFilter]);
+
+  const filteredTotal = filteredCatalog.categories.length + filteredCatalog.publishers.length;
+  const hasActiveFilters = Boolean(searchQuery.trim()) || typeFilter !== "all";
 
   const loadCatalog = async () => {
     setLoading(true);
@@ -150,6 +169,49 @@ function Catalog() {
         </form>
       </div>
 
+      <div className="table-card" style={{ marginBottom: 24 }}>
+        <div className="filters-row">
+          <div className="search-bar">
+            <label>Tìm danh mục</label>
+            <span className="search-field-icon">
+              <Search size={17} />
+            </span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Tìm theo tên thể loại hoặc nhà xuất bản"
+            />
+          </div>
+          <div className="filter-group">
+            <label>Loại</label>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="all">Tất cả</option>
+              <option value="categories">Thể loại</option>
+              <option value="publishers">Nhà xuất bản</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Kết quả</label>
+            <span className="badge">{filteredTotal} mục</span>
+          </div>
+          <div className="filter-group">
+            <label>Bộ lọc</label>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setTypeFilter("all");
+              }}
+              disabled={!hasActiveFilters}
+            >
+              Xóa bộ lọc
+            </button>
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <div className="skeleton-panel">
           <span />
@@ -158,14 +220,16 @@ function Catalog() {
         </div>
       ) : (
         <div className="catalog-grid">
-          {["categories", "publishers"].map((type) => (
+          {["categories", "publishers"]
+            .filter((type) => typeFilter === "all" || typeFilter === type)
+            .map((type) => (
             <div className="table-card" key={type}>
               <div className="table-card-header row-between">
                 <h3>{typeLabels[type]}</h3>
-                <span className="badge">{catalog[type]?.length || 0} mục</span>
+                <span className="badge">{filteredCatalog[type]?.length || 0}/{catalog[type]?.length || 0} mục</span>
               </div>
               <div className="chip-list">
-                {(catalog[type] || []).map((name) => (
+                {(filteredCatalog[type] || []).map((name) => (
                   <span className="managed-chip" key={name}>
                     {name}
                     <button type="button" onClick={() => handleDelete(type, name)} disabled={submitting}>
@@ -173,8 +237,10 @@ function Catalog() {
                     </button>
                   </span>
                 ))}
-                {(catalog[type] || []).length === 0 && (
-                  <div className="empty-state compact">Chưa có danh mục.</div>
+                {(filteredCatalog[type] || []).length === 0 && (
+                  <div className="empty-state compact">
+                    {(catalog[type] || []).length === 0 ? "Chưa có danh mục." : "Không có danh mục phù hợp bộ lọc."}
+                  </div>
                 )}
               </div>
             </div>

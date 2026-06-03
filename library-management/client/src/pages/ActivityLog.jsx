@@ -144,6 +144,36 @@ function getActivityTarget(activity) {
   );
 }
 
+function formatMetadataValue(value) {
+  if (value === undefined) return "-";
+  if (value === null || value === "") return "-";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function getMetadataDiffRows(metadata = {}) {
+  const before = metadata.before;
+  const after = metadata.after;
+
+  if (!before || !after || typeof before !== "object" || typeof after !== "object") {
+    return [];
+  }
+
+  return Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
+    .filter((key) => !Object.is(before[key], after[key]))
+    .map((key) => ({
+      field: key,
+      before: before[key],
+      after: after[key],
+    }));
+}
+
+function getMetadataSummaryRows(metadata = {}) {
+  return Object.entries(metadata)
+    .filter(([key]) => !["before", "after"].includes(key))
+    .map(([key, value]) => ({ key, value }));
+}
+
 function downloadFile(content, filename, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -329,6 +359,9 @@ function ActivityLog() {
     Boolean(actorFilter) ||
     Boolean(fromDate) ||
     Boolean(toDate);
+  const selectedMetadata = selectedActivity?.metadata || {};
+  const selectedDiffRows = getMetadataDiffRows(selectedMetadata);
+  const selectedSummaryRows = getMetadataSummaryRows(selectedMetadata);
 
   useEffect(() => {
     setPage(1);
@@ -705,6 +738,56 @@ function ActivityLog() {
               <span>Thời gian: <strong>{formatDateTime(selectedActivity.createdAt)}</strong></span>
               <span>Ngày hệ thống: <strong>{getDateInputValue(selectedActivity.createdAt)}</strong></span>
             </div>
+
+            {selectedSummaryRows.length > 0 && (
+              <div className="activity-metadata-box">
+                <strong>Thông tin thao tác</strong>
+                <div className="table-responsive">
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Trường</th>
+                        <th>Giá trị</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedSummaryRows.map((row) => (
+                        <tr key={row.key}>
+                          <td>{row.key}</td>
+                          <td>{formatMetadataValue(row.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {selectedDiffRows.length > 0 && (
+              <div className="activity-metadata-box">
+                <strong>Thay đổi trước / sau</strong>
+                <div className="table-responsive">
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Trường</th>
+                        <th>Trước</th>
+                        <th>Sau</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedDiffRows.map((row) => (
+                        <tr key={row.field}>
+                          <td>{row.field}</td>
+                          <td>{formatMetadataValue(row.before)}</td>
+                          <td>{formatMetadataValue(row.after)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             <div className="activity-metadata-box">
               <strong>Metadata</strong>

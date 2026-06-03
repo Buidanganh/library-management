@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart3,
   BookCopy,
   BookOpen,
   CalendarClock,
@@ -238,6 +239,7 @@ function Dashboard({
   onAddBook,
   onAddReader,
   onNavigateToBooks,
+  onNavigateToAnalytics,
   onNavigateToReaders,
   onNavigateToBorrow,
   onNavigateToOverdue,
@@ -655,6 +657,14 @@ function Dashboard({
       icon: BookOpen,
       onClick: onNavigateToBooks,
     },
+    {
+      title: "Phân tích thư viện",
+      detail: "Xem biểu đồ thể loại, top sách được mượn và xu hướng mượn trả theo tháng.",
+      meta: "Báo cáo",
+      tone: "primary",
+      icon: BarChart3,
+      onClick: onNavigateToAnalytics,
+    },
     isAdmin && {
       title: "Thêm sách mới",
       detail: "Tạo đầu sách mới hoặc nhập nhanh bằng form quản trị.",
@@ -807,6 +817,37 @@ function Dashboard({
       onClick: onNavigateToBorrow,
     },
   ];
+  const smartAlerts = [
+    {
+      label: "Ưu tiên cao",
+      title: summary.overdue > 0 ? `${summary.overdue} phiếu quá hạn cần xử lý` : "Không có phiếu quá hạn",
+      detail: summary.overdue > 0 ? "Mở danh sách quá hạn để gia hạn, thu phạt hoặc nhắc trả." : "Luồng mượn trả đang trong ngưỡng an toàn.",
+      tone: summary.overdue > 0 ? "danger" : "success",
+      onClick: onNavigateToOverdue,
+    },
+    {
+      label: "Tồn kho",
+      title: summary.lowStockBooks.length > 0 ? `${summary.lowStockBooks.length} sách sắp hết hoặc hết` : "Tồn kho ổn định",
+      detail: summary.lowStockBooks.length > 0 ? "Kiểm kê nhóm sách còn rất ít bản để tránh gián đoạn mượn." : "Không có đầu sách cần bổ sung ngay.",
+      tone: summary.lowStockBooks.length > 0 ? "warning" : "success",
+      onClick: onNavigateToBooks,
+    },
+    {
+      label: "Dữ liệu",
+      title: summary.missingImageBooks > 0 ? `${summary.missingImageBooks} sách thiếu ảnh bìa` : "Ảnh bìa đầy đủ",
+      detail: summary.missingImageBooks > 0 ? "Bổ sung ảnh giúp card sách và tra cứu trực quan hơn." : "Dữ liệu hiển thị đang gọn gàng.",
+      tone: summary.missingImageBooks > 0 ? "warning" : "success",
+      onClick: onNavigateToBooks,
+    },
+    {
+      label: "Đặt trước",
+      title: summary.waitingReservations > 0 ? `${summary.waitingReservations} yêu cầu đang chờ` : "Không có yêu cầu chờ",
+      detail: summary.waitingReservations > 0 ? "Ưu tiên xử lý hàng chờ để giảm thời gian độc giả đợi sách." : "Không có hàng chờ cần điều phối.",
+      tone: summary.waitingReservations > 0 ? "warning" : "success",
+      onClick: onNavigateToBorrow,
+    },
+  ];
+
   const dashboardSlaItems = [
     {
       label: "Quá hạn",
@@ -917,6 +958,16 @@ function Dashboard({
             </div>
           );
         })}
+      </div>
+
+      <div className="smart-alert-grid mb-4">
+        {smartAlerts.map((alert) => (
+          <button className={`smart-alert-card ${alert.tone}`} type="button" key={alert.label} onClick={alert.onClick}>
+            <span>{alert.label}</span>
+            <strong>{alert.title}</strong>
+            <small>{alert.detail}</small>
+          </button>
+        ))}
       </div>
 
       <div className="dashboard-alert-strip mb-4">
@@ -1272,6 +1323,7 @@ function Dashboard({
                         <th>Sách</th>
                         <th>Hạn trả</th>
                         <th>Trạng thái</th>
+                        <th>Hành động</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1284,6 +1336,15 @@ function Dashboard({
                             <span className={getLoanBadgeClass(loan.status)}>
                               {loan.status === "overdue" ? `Trễ ${loan.lateDays || 0} ngày` : getDueSoonLabel(loan.dueDate)}
                             </span>
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              type="button"
+                              onClick={loan.status === "overdue" ? onNavigateToOverdue : onNavigateToBorrow}
+                            >
+                              {loan.status === "overdue" ? "Xử lý quá hạn" : "Xem phiếu"}
+                            </button>
                           </td>
                         </tr>
                       ))}

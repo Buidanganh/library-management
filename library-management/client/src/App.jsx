@@ -4,7 +4,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Layout from "./components/Layout";
 
-const MOJIBAKE_PATTERN = /Ãƒ|Ã‚|Â|Æ|â€/;
+const MOJIBAKE_PATTERN = /Ã|Æ|Â|â€/;
 
 function readSavedUser() {
   const savedUser = localStorage.getItem("libraryUser");

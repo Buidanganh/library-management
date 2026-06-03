@@ -15,6 +15,7 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
+  UserRound,
   Upload,
 } from "lucide-react";
 import { createReservation, getBooks, getLoans, getReservations, getReviews } from "../services/api";
@@ -43,6 +44,12 @@ function getBookStatusLabel(book) {
   return "Có thể mượn";
 }
 
+function getStatusBadgeClass(status) {
+  if (status === "available") return "badge success";
+  if (status === "low") return "badge warning";
+  return "badge danger";
+}
+
 function getConditionLabel(condition) {
   const labels = {
     good: "Tốt",
@@ -55,6 +62,18 @@ function getConditionLabel(condition) {
 
 function hasBookImage(book) {
   return Boolean(String(book.imageUrl || "").trim());
+}
+
+function isLoanOverdue(loan) {
+  if (loan.status === "overdue") return true;
+  if (loan.status !== "borrowed" || !loan.dueDate) return false;
+
+  const dueDate = new Date(loan.dueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+
+  return dueDate < today;
 }
 
 function sortBooks(books, sortMode) {
@@ -249,6 +268,32 @@ function BookDetailPanel({
     { label: "Lượt mượn", value: bookLoans.length },
     { label: "Đặt trước", value: waitingReservations.length },
   ];
+  const timelineItems = [
+    ...bookLoans.map((loan) => ({
+      id: `loan-${loan.id}`,
+      tone: loan.status === "overdue" ? "danger" : loan.status === "returned" ? "success" : "primary",
+      date: loan.returnedDate || loan.dueDate || loan.borrowedDate,
+      title: loan.status === "returned" ? "Đã trả sách" : loan.status === "overdue" ? "Phiếu quá hạn" : "Đang mượn",
+      detail: `${loan.readerName || "Độc giả"} · Mượn ${loan.borrowedDate || "-"} · Hạn ${loan.dueDate || "-"}`,
+    })),
+    ...waitingReservations.map((reservation) => ({
+      id: `reservation-${reservation.id}`,
+      tone: "warning",
+      date: reservation.createdAt,
+      title: "Đặt trước đang chờ",
+      detail: `${reservation.readerName || "Độc giả"} đang chờ sách`,
+    })),
+    ...bookReviews.slice(0, 6).map((review) => ({
+      id: `review-${review.id}`,
+      tone: "success",
+      date: review.createdAt,
+      title: `Đánh giá ${review.rating || 0}/5`,
+      detail: `${review.readerName || "Độc giả"} · ${review.comment || "Không có bình luận."}`,
+    })),
+  ]
+    .filter((item) => item.date || item.detail)
+    .sort((first, second) => new Date(second.date || 0) - new Date(first.date || 0))
+    .slice(0, 10);
 
   return (
     <div className="book-detail-panel book-detail-drawer" data-active-tab={activeTab}>
@@ -270,15 +315,7 @@ function BookDetailPanel({
             <p>{book.author || "Chưa có tác giả"}</p>
           </div>
           <span
-            className={
-              status === "out"
-                ? "badge danger"
-                : status === "blocked"
-                ? "badge danger"
-                : status === "low"
-                ? "badge warning"
-                : "badge success"
-            }
+            className={getStatusBadgeClass(status)}
           >
             {getBookStatusLabel(book)}
           </span>
@@ -321,7 +358,7 @@ function BookDetailPanel({
         <div className="drawer-tab-list" role="tablist">
           {[
             ["overview", "Tổng quan"],
-            ["history", "Lịch sử"],
+            ["history", "Timeline"],
             ["reviews", "Đánh giá"],
             ["reservations", "Đặt trước"],
             ["related", "Gợi ý"],
@@ -389,6 +426,26 @@ function BookDetailPanel({
           <button className="secondary-button" type="button" onClick={onClose}>
             Đóng chi tiết
           </button>
+        </div>
+
+        <div className="book-life-timeline">
+          <h4>Timeline vòng đời sách</h4>
+          {timelineItems.length === 0 ? (
+            <div className="empty-state compact">Chưa có hoạt động nào cho sách này.</div>
+          ) : (
+            <div className="book-timeline-list">
+              {timelineItems.map((item) => (
+                <div className={`book-timeline-item ${item.tone}`} key={item.id}>
+                  <span className="book-timeline-dot" />
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>{item.date ? new Date(item.date).toLocaleDateString("vi-VN") : "Chưa có ngày"}</small>
+                    <p>{item.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="book-loan-history">
@@ -513,6 +570,7 @@ function Books({
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [authorFilter, setAuthorFilter] = useState("");
   const [publisherFilter, setPublisherFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [stockFilter, setStockFilter] = useState("");
@@ -557,6 +615,7 @@ function Books({
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [borrowingBookId, setBorrowingBookId] = useState(null);
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     imageUrl: "",
@@ -564,7 +623,11 @@ function Books({
     category: "",
     isbn: "",
     condition: "good",
+    publisher: "",
+    year: "",
     quantity: "",
+    shelfLocation: "",
+    description: "",
   });
 
   const loadBooks = async () => {
@@ -610,6 +673,11 @@ function Books({
     [books]
   );
 
+  const authors = useMemo(
+    () => Array.from(new Set(books.map((book) => book.author).filter(Boolean))).sort(),
+    [books]
+  );
+
   const publishers = useMemo(
     () => Array.from(new Set(books.map((book) => book.publisher).filter(Boolean))).sort(),
     [books]
@@ -632,8 +700,10 @@ function Books({
       blocked: books.filter((book) => getBookStatus(book) === "blocked").length,
       withImage: books.filter(hasBookImage).length,
       missingImage: books.filter((book) => !hasBookImage(book)).length,
+      activeLoans: loans.filter((loan) => loan.status !== "returned").length,
+      overdueLoans: loans.filter(isLoanOverdue).length,
     }),
-    [books]
+    [books, loans]
   );
 
   const borrowCountByBookId = useMemo(
@@ -687,6 +757,7 @@ function Books({
         ].some((value) => String(value || "").toLowerCase().includes(query));
 
       const matchesCategory = !categoryFilter || book.category === categoryFilter;
+      const matchesAuthor = !authorFilter || book.author === authorFilter;
       const matchesPublisher = !publisherFilter || book.publisher === publisherFilter;
       const matchesYear = !yearFilter || String(book.year || "").trim() === yearFilter;
       const status = getBookStatus(book);
@@ -700,11 +771,11 @@ function Books({
         (imageFilter === "with-image" && hasBookImage(book)) ||
         (imageFilter === "missing-image" && !hasBookImage(book));
 
-      return matchesQuery && matchesCategory && matchesPublisher && matchesYear && matchesStock && matchesCondition && matchesImage;
+      return matchesQuery && matchesCategory && matchesAuthor && matchesPublisher && matchesYear && matchesStock && matchesCondition && matchesImage;
     });
 
     return sortBooks(filtered, sortMode);
-  }, [books, searchQuery, categoryFilter, publisherFilter, yearFilter, stockFilter, conditionFilter, imageFilter, sortMode]);
+  }, [books, searchQuery, categoryFilter, authorFilter, publisherFilter, yearFilter, stockFilter, conditionFilter, imageFilter, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBooks.length / pageSize));
   const pagedBooks = useMemo(
@@ -714,7 +785,7 @@ function Books({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, categoryFilter, publisherFilter, yearFilter, stockFilter, conditionFilter, imageFilter, sortMode, pageSize]);
+  }, [searchQuery, categoryFilter, authorFilter, publisherFilter, yearFilter, stockFilter, conditionFilter, imageFilter, sortMode, pageSize]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -844,6 +915,7 @@ function Books({
   const hasActiveFilters =
     Boolean(searchQuery.trim()) ||
     Boolean(categoryFilter) ||
+    Boolean(authorFilter) ||
     Boolean(publisherFilter) ||
     Boolean(yearFilter) ||
     Boolean(stockFilter) ||
@@ -854,6 +926,7 @@ function Books({
   const activeFilterCount = [
     searchQuery.trim(),
     categoryFilter,
+    authorFilter,
     publisherFilter,
     yearFilter,
     stockFilter,
@@ -883,6 +956,13 @@ function Books({
       helper: `${bookSummary.low} sắp hết, ${bookSummary.out} hết`,
       tone: bookSummary.low + bookSummary.out > 0 ? "warning" : "success",
       icon: AlertTriangle,
+    },
+    {
+      label: "Đang mượn",
+      value: bookSummary.activeLoans,
+      helper: `${bookSummary.overdueLoans} lượt quá hạn`,
+      tone: bookSummary.overdueLoans > 0 ? "danger" : "primary",
+      icon: UserRound,
     },
     {
       label: "Thiếu ảnh bìa",
@@ -958,6 +1038,17 @@ function Books({
     },
   ];
 
+  const formErrors = useMemo(() => {
+    const errors = {};
+    if (!String(formData.title || "").trim()) errors.title = "Cần nhập tên sách.";
+    if (!String(formData.author || "").trim()) errors.author = "Cần nhập tác giả.";
+    if (!String(formData.category || "").trim()) errors.category = "Cần nhập thể loại.";
+    if (formData.quantity === "" || Number(formData.quantity) < 0) errors.quantity = "Số lượng phải từ 0 trở lên.";
+    if (formData.year && !/^\d{4}$/.test(String(formData.year))) errors.year = "Năm xuất bản cần có 4 chữ số.";
+    if (formData.imageUrl && !/^https?:\/\//i.test(String(formData.imageUrl))) errors.imageUrl = "URL ảnh nên bắt đầu bằng http:// hoặc https://.";
+    return errors;
+  }, [formData]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -975,9 +1066,14 @@ function Books({
       category: "",
       isbn: "",
       condition: "good",
+      publisher: "",
+      year: "",
       quantity: "",
+      shelfLocation: "",
+      description: "",
     });
 
+    setFormSubmitted(false);
     setEditingBookId(null);
     setShowForm(false);
   };
@@ -985,6 +1081,7 @@ function Books({
   const resetFilters = () => {
     setSearchQuery("");
     setCategoryFilter("");
+    setAuthorFilter("");
     setPublisherFilter("");
     setYearFilter("");
     setStockFilter("");
@@ -1000,7 +1097,7 @@ function Books({
     const view = {
       id: `view-${Date.now()}`,
       name,
-      filters: { searchQuery, categoryFilter, publisherFilter, yearFilter, stockFilter, imageFilter, conditionFilter, sortMode, viewMode, pageSize },
+      filters: { searchQuery, categoryFilter, authorFilter, publisherFilter, yearFilter, stockFilter, imageFilter, conditionFilter, sortMode, viewMode, pageSize },
     };
     setSavedViews((views) => [view, ...views.filter((item) => item.name !== name)].slice(0, 8));
   };
@@ -1009,6 +1106,7 @@ function Books({
     const filters = view.filters || {};
     setSearchQuery(filters.searchQuery || "");
     setCategoryFilter(filters.categoryFilter || "");
+    setAuthorFilter(filters.authorFilter || "");
     setPublisherFilter(filters.publisherFilter || "");
     setYearFilter(filters.yearFilter || "");
     setStockFilter(filters.stockFilter || "");
@@ -1090,20 +1188,25 @@ function Books({
   const handleSaveBook = async () => {
     if (!canManage || !onSaveBook) return;
 
-    if (!formData.title || !formData.author || !formData.category || !formData.quantity) {
-      alert("Vui lòng nhập đầy đủ thông tin sách.");
+    setFormSubmitted(true);
+
+    if (Object.keys(formErrors).length > 0) {
       return;
     }
 
     await onSaveBook({
       id: editingBookId,
-      title: formData.title,
-      imageUrl: formData.imageUrl,
-      author: formData.author,
-      category: formData.category,
-      isbn: formData.isbn,
+      title: formData.title.trim(),
+      imageUrl: formData.imageUrl.trim(),
+      author: formData.author.trim(),
+      category: formData.category.trim(),
+      isbn: formData.isbn.trim(),
       condition: formData.condition,
+      publisher: formData.publisher.trim(),
+      year: formData.year.trim(),
       quantity: Number(formData.quantity),
+      shelfLocation: formData.shelfLocation.trim(),
+      description: formData.description.trim(),
     });
 
     await loadBooks();
@@ -1127,7 +1230,11 @@ function Books({
       category: book.category || "",
       isbn: book.isbn || "",
       condition: book.condition || "good",
+      publisher: book.publisher || "",
+      year: book.year || "",
       quantity: book.quantity || "",
+      shelfLocation: book.shelfLocation || "",
+      description: book.description || "",
     });
 
     setShowForm(true);
@@ -1247,7 +1354,8 @@ function Books({
           <div className="page-hero-meta">
             <span>{filteredBooks.length} sách đang hiển thị</span>
             <span>{categories.length} thể loại</span>
-            <span>{publishers.length} nhà xuất bản</span>
+            <span>{authors.length} tác giả</span>
+            <span>{bookSummary.overdueLoans} quá hạn</span>
           </div>
         </div>
 
@@ -1334,6 +1442,7 @@ function Books({
                   <span>{activeFilterCount} bộ lọc</span>
                   <span>{bookSummary.available} còn tốt</span>
                   <span>{bookSummary.low + bookSummary.out} sắp hết / hết</span>
+                  <span>{bookSummary.overdueLoans} quá hạn</span>
                   {canManage && <span>{selectedBookIds.length} đã chọn</span>}
                 </div>
               </div>
@@ -1410,6 +1519,18 @@ function Books({
                   {categories.map((category) => (
                     <option key={category} value={category}>
                       {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label>Tác giả</label>
+                <select value={authorFilter} onChange={(event) => setAuthorFilter(event.target.value)}>
+                  <option value="">Tất cả</option>
+                  {authors.map((author) => (
+                    <option key={author} value={author}>
+                      {author}
                     </option>
                   ))}
                 </select>
@@ -1774,98 +1895,129 @@ function Books({
           )}
 
           {canManage && showForm && (
-            <div className="form-card">
-              <h3>{editingBookId ? "Cập nhật sách" : "Thêm sách mới"}</h3>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Tên sách</label>
-                  <input
-                    type="text"
-                    name="title"
-                    placeholder="Nhập tên sách"
-                    value={formData.title}
-                    onChange={handleChange}
-                  />
+            <div className="form-card book-editor-card">
+              <div className="book-editor-header">
+                <div>
+                  <span className="page-eyebrow">
+                    <BookOpen size={15} />
+                    {editingBookId ? "Chỉnh sửa đầu sách" : "Đầu sách mới"}
+                  </span>
+                  <h3>{editingBookId ? "Cập nhật sách" : "Thêm sách mới"}</h3>
+                  <p>Nhập đủ thông tin chính, phân loại kho và ảnh bìa trước khi lưu.</p>
                 </div>
-
-                <div className="form-group">
-                  <label>Ảnh sách</label>
-                  <input
-                    type="url"
-                    name="imageUrl"
-                    placeholder="https://example.com/book-cover.jpg"
-                    value={formData.imageUrl}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Tác giả</label>
-                  <input
-                    type="text"
-                    name="author"
-                    placeholder="Nhập tác giả"
-                    value={formData.author}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Thể loại</label>
-                  <input
-                    type="text"
-                    name="category"
-                    placeholder="Nhập thể loại"
-                    value={formData.category}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>ISBN</label>
-                  <input
-                    type="text"
-                    name="isbn"
-                    placeholder="Nhập ISBN"
-                    value={formData.isbn}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Tình trạng bản sách</label>
-                  <select name="condition" value={formData.condition} onChange={handleChange}>
-                    <option value="good">Tốt</option>
-                    <option value="damaged">Hư hỏng nhẹ</option>
-                    <option value="repair">Đang sửa</option>
-                    <option value="lost">Mất sách</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Số lượng</label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Nhập số lượng"
-                    min="0"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              <BookImagePreview book={formData} />
-
-              <div className="form-actions">
-                <button className="primary-button" onClick={handleSaveBook}>
-                  {editingBookId ? "Cập nhật" : "Lưu sách"}
-                </button>
-
-                <button className="secondary-button" onClick={resetForm}>
+                <button className="secondary-button" type="button" onClick={resetForm}>
                   Hủy
                 </button>
+              </div>
+
+              <div className="book-editor-layout">
+                <aside className="book-editor-preview">
+                  <BookImagePreview book={formData} />
+                  {!formData.imageUrl && (
+                    <div className="book-editor-empty-preview">
+                      <ImageOff size={26} />
+                      <strong>Chưa có ảnh bìa</strong>
+                      <span>Thêm URL ảnh để card và bảng dễ nhận diện hơn.</span>
+                    </div>
+                  )}
+                </aside>
+
+                <div className="book-editor-fields">
+                  <section className="form-section">
+                    <div className="form-section-title">
+                      <h4>Thông tin sách</h4>
+                      <span className="badge">Bắt buộc</span>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Tên sách</label>
+                        <input type="text" name="title" placeholder="Nhập tên sách" value={formData.title} onChange={handleChange} />
+                        {formSubmitted && formErrors.title && <small className="field-error">{formErrors.title}</small>}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Tác giả</label>
+                        <input type="text" name="author" placeholder="Nhập tác giả" value={formData.author} onChange={handleChange} />
+                        {formSubmitted && formErrors.author && <small className="field-error">{formErrors.author}</small>}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Thể loại</label>
+                        <input type="text" name="category" placeholder="Nhập thể loại" value={formData.category} onChange={handleChange} />
+                        {formSubmitted && formErrors.category && <small className="field-error">{formErrors.category}</small>}
+                      </div>
+
+                      <div className="form-group">
+                        <label>ISBN</label>
+                        <input type="text" name="isbn" placeholder="Nhập ISBN" value={formData.isbn} onChange={handleChange} />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="form-section">
+                    <div className="form-section-title">
+                      <h4>Kho và phân loại</h4>
+                      <span className={formData.condition === "good" ? "badge success" : "badge warning"}>{getConditionLabel(formData.condition)}</span>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Tình trạng bản sách</label>
+                        <select name="condition" value={formData.condition} onChange={handleChange}>
+                          <option value="good">Tốt</option>
+                          <option value="damaged">Hư hỏng nhẹ</option>
+                          <option value="repair">Đang sửa</option>
+                          <option value="lost">Mất sách</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Số lượng</label>
+                        <input type="number" name="quantity" placeholder="Nhập số lượng" min="0" value={formData.quantity} onChange={handleChange} />
+                        {formSubmitted && formErrors.quantity && <small className="field-error">{formErrors.quantity}</small>}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Nhà xuất bản</label>
+                        <input type="text" name="publisher" placeholder="Nhập nhà xuất bản" value={formData.publisher} onChange={handleChange} />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Năm xuất bản</label>
+                        <input type="text" name="year" inputMode="numeric" placeholder="VD: 2024" value={formData.year} onChange={handleChange} />
+                        {formSubmitted && formErrors.year && <small className="field-error">{formErrors.year}</small>}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Vị trí kệ</label>
+                        <input type="text" name="shelfLocation" placeholder="VD: A2-03" value={formData.shelfLocation} onChange={handleChange} />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Ảnh sách</label>
+                        <input type="url" name="imageUrl" placeholder="https://example.com/book-cover.jpg" value={formData.imageUrl} onChange={handleChange} />
+                        {formSubmitted && formErrors.imageUrl && <small className="field-error">{formErrors.imageUrl}</small>}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="form-section">
+                    <div className="form-section-title">
+                      <h4>Mô tả</h4>
+                    </div>
+                    <div className="form-group">
+                      <textarea name="description" rows="4" placeholder="Tóm tắt nội dung, ghi chú bảo quản hoặc thông tin đặc biệt" value={formData.description} onChange={handleChange} />
+                    </div>
+                  </section>
+
+                  <div className="form-actions book-editor-actions">
+                    <button className="primary-button" type="button" onClick={handleSaveBook}>
+                      {editingBookId ? "Cập nhật" : "Lưu sách"}
+                    </button>
+                    <button className="secondary-button" type="button" onClick={resetForm}>
+                      Hủy
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1906,9 +2058,13 @@ function Books({
                     </div>
                     <div className="book-card-meta">
                       <span>Còn {getAvailableQuantity(book)}/{book.quantity}</span>
-                      <span className={status === "available" ? "badge success" : status === "low" ? "badge warning" : "badge danger"}>
+                      <span className={getStatusBadgeClass(status)}>
                         {getBookStatusLabel(book)}
                       </span>
+                    </div>
+                    <div className="book-card-status-row">
+                      <span className="badge">Đang mượn {activeLoanCountByBookId[book.id] || 0}</span>
+                      <span className={hasBookImage(book) ? "badge success" : "badge warning"}>{hasBookImage(book) ? "Có ảnh" : "Thiếu ảnh"}</span>
                     </div>
                     <div className="action-buttons">
                       {canBorrow && (
@@ -1978,6 +2134,10 @@ function Books({
                               <strong>{book.title}</strong>
                               <span>{book.isbn ? `ISBN ${book.isbn}` : book.publisher || book.shelfLocation || "Chưa có thông tin thêm"}</span>
                               {book.reviewCount > 0 && <span>★ {book.averageRating}/5 từ {book.reviewCount} đánh giá</span>}
+                              <span className="book-table-badges">
+                                <span className="badge">Đang mượn {activeLoanCountByBookId[book.id] || 0}</span>
+                                <span className={hasBookImage(book) ? "badge success" : "badge warning"}>{hasBookImage(book) ? "Có ảnh" : "Thiếu ảnh"}</span>
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -1988,15 +2148,7 @@ function Books({
                         <td>{getAvailableQuantity(book)}</td>
                         <td>
                           <span
-                            className={
-                              status === "out"
-                                ? "badge danger"
-                                : status === "blocked"
-                                ? "badge danger"
-                                : status === "low"
-                                ? "badge warning"
-                                : "badge success"
-                            }
+                            className={getStatusBadgeClass(status)}
                           >
                             {getBookStatusLabel(book)}
                           </span>

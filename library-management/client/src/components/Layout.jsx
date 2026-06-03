@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import Dashboard from "../pages/Dashboard";
+import Analytics from "../pages/Analytics";
 import Books from "../pages/Books";
 import BookCreate from "../pages/BookCreate";
 import Readers from "../pages/Readers";
@@ -219,6 +220,7 @@ function Layout({ user, onLogout }) {
       })),
       { id: "cmd-books-attention", title: "Mở kho sách cần xử lý", meta: "Sách sắp hết, hết, thiếu ảnh", kind: "Tác vụ", run: () => handleChangePage("books") },
       { id: "cmd-borrow", title: "Mở kanban mượn trả", meta: "Điều phối phiếu đang mượn", kind: "Tác vụ", run: () => handleChangePage("borrow") },
+      { id: "cmd-analytics", title: "Mở phân tích thư viện", meta: "Biểu đồ thể loại, mượn trả, quá hạn", kind: "Báo cáo", run: () => handleChangePage("analytics") },
       canManageLibrary && { id: "cmd-add-book", title: "Thêm sách mới", meta: "Biên mục đầu sách", kind: "Tác vụ", run: () => handleNavigateToCreate("books") },
       { id: "cmd-toggle-theme", title: theme === "dark" ? "Chuyển giao diện sáng" : "Chuyển giao diện tối", meta: "Theme", kind: "Hiển thị", run: () => setTheme((value) => (value === "dark" ? "light" : "dark")) },
       { id: "cmd-toggle-density", title: density === "compact" ? "Chuyển giao diện thoáng" : "Chuyển giao diện gọn", meta: "Density", kind: "Hiển thị", run: () => setDensity((value) => (value === "compact" ? "comfortable" : "compact")) },
@@ -266,6 +268,10 @@ function Layout({ user, onLogout }) {
         ? "Thêm, sửa, xóa và theo dõi sách hiện có."
         : "Tra cứu danh sách sách hiện có trong thư viện.",
     },
+    analytics: {
+      title: "Phân tích",
+      subtitle: "Theo dõi xu hướng mượn trả, thể loại và chất lượng dữ liệu kho.",
+    },
     profile: {
       title: "Hồ sơ cá nhân",
       subtitle: "Theo dõi thông tin độc giả, sách đang mượn và lịch sử mượn trả.",
@@ -304,10 +310,18 @@ function Layout({ user, onLogout }) {
         onAddBook={() => handleNavigateToCreate("books")}
         onAddReader={() => handleChangePage("readers")}
         onNavigateToBooks={() => handleChangePage("books")}
+        onNavigateToAnalytics={() => handleChangePage("analytics")}
         onNavigateToReaders={() => handleChangePage("readers")}
         onNavigateToBorrow={() => handleChangePage("borrow")}
         onNavigateToOverdue={() => handleChangePage("overdue")}
         isAdmin={canManageLibrary}
+      />
+    ),
+    analytics: (
+      <Analytics
+        onNavigateToBooks={() => handleChangePage("books")}
+        onNavigateToBorrow={() => handleChangePage("borrow")}
+        onNavigateToOverdue={() => handleChangePage("overdue")}
       />
     ),
     books: (

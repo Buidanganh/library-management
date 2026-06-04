@@ -1,11 +1,15 @@
 const fs = require("fs/promises");
+const fsSync = require("fs");
 const path = require("path");
+const os = require("os");
 
 const DB_FILE = path.join(__dirname, "library.db.json");
+const TMP_DB_FILE = path.join(os.tmpdir(), "library.db.json");
 const REMOTE_DB_KEY = process.env.REMOTE_DB_KEY || "library-management:db";
 const KV_REST_API_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const USE_REMOTE_DB = Boolean(KV_REST_API_URL && KV_REST_API_TOKEN);
+const FORCE_TMP_DB = process.env.FORCE_TMP_DB === "1" || process.env.FORCE_TMP_DB === "true";
 
 const defaultData = {
   users: [
@@ -247,6 +251,29 @@ async function fileExists(filePath) {
   }
 }
 
+async function canWritePath(filePath) {
+  try {
+    await fs.access(filePath, fsSync.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getEffectiveDbPath() {
+  if (USE_REMOTE_DB) return null;
+  if (FORCE_TMP_DB) return TMP_DB_FILE;
+
+  if (await fileExists(DB_FILE)) {
+    if (await canWritePath(DB_FILE)) return DB_FILE;
+    return TMP_DB_FILE;
+  }
+
+  const baseDir = path.dirname(DB_FILE);
+  if (await canWritePath(baseDir)) return DB_FILE;
+  return TMP_DB_FILE;
+}
+
 async function kvCommand(command, ...args) {
   if (typeof fetch !== "function") {
     throw new Error("Node.js runtime khong ho tro fetch de ket noi remote database.");
@@ -328,6 +355,22 @@ async function ensureDatabase() {
     return;
   }
 
+  const effectiveFile = await getEffectiveDbPath();
+  if (effectiveFile === TMP_DB_FILE) {
+    if (await fileExists(TMP_DB_FILE)) {
+      return;
+    }
+
+    if (await fileExists(DB_FILE)) {
+      const raw = await fs.readFile(DB_FILE, "utf8");
+      await fs.writeFile(TMP_DB_FILE, raw, "utf8");
+      return;
+    }
+
+    await fs.writeFile(TMP_DB_FILE, JSON.stringify(withDefaults(clone(defaultData)), null, 2) + "\n", "utf8");
+    return;
+  }
+
   if (!(await fileExists(DB_FILE))) {
     const oldDataFile = path.join(__dirname, "data.json");
     if (await fileExists(oldDataFile)) {
@@ -351,7 +394,9 @@ async function readData() {
     return withDefaults(typeof raw === "string" ? parseJsonFile(raw) : raw);
   }
 
-  const raw = await fs.readFile(DB_FILE, "utf8");
+  const effectiveFile = await getEffectiveDbPath();
+  const readFilePath = effectiveFile === TMP_DB_FILE && (await fileExists(TMP_DB_FILE)) ? TMP_DB_FILE : DB_FILE;
+  const raw = await fs.readFile(readFilePath, "utf8");
   return withDefaults(parseJsonFile(raw));
 }
 
@@ -361,7 +406,18 @@ async function writeData(data) {
     return;
   }
 
-  await fs.writeFile(DB_FILE, JSON.stringify(withDefaults(data), null, 2) + "\n", "utf8");
+  const effectiveFile = await getEffectiveDbPath();
+  const writeFilePath = effectiveFile || DB_FILE;
+
+  try {
+    await fs.writeFile(writeFilePath, JSON.stringify(withDefaults(data), null, 2) + "\n", "utf8");
+  } catch (error) {
+    if (error.code === "EROFS" || error.code === "ENOTDIR" || error.code === "EACCES") {
+      await fs.writeFile(TMP_DB_FILE, JSON.stringify(withDefaults(data), null, 2) + "\n", "utf8");
+      return;
+    }
+    throw error;
+  }
 }
 
 module.exports = {

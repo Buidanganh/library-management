@@ -13,6 +13,13 @@
       "email": "buidanganh@gmail.com",
       "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
       "role": "user"
+    },
+    {
+      "id": 3,
+      "fullName": "Bùi Đăng Anh",
+      "email": "buidanganh0303@gmail.com",
+      "passwordHash": "15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225",
+      "role": "user"
     }
   ],
   "books": [
@@ -1724,6 +1731,14 @@
       "email": "dotungduong@gmail.com",
       "phone": "0911558746",
       "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=%C4%90%E1%BB%97%20T%C3%B9ng%20D%C6%B0%C6%A1ng"
+    },
+    {
+      "id": 52,
+      "name": "Bùi Đăng Anh",
+      "email": "buidanganh0303@gmail.com",
+      "phone": "0901000003",
+      "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=B%C3%B9i%20%C4%90%C4%83ng%20Anh",
+      "userId": 3
     }
   ],
   "loans": [
@@ -1819,6 +1834,18 @@
       "fineStatus": "none",
       "finePaidDate": null,
       "fineHandledBy": ""
+    },
+    {
+      "id": 10,
+      "readerId": 52,
+      "bookId": 27,
+      "borrowedDate": "2026-06-04",
+      "dueDate": "2026-06-18",
+      "returnedDate": null,
+      "status": "borrowed",
+      "fineStatus": "none",
+      "finePaidDate": null,
+      "fineHandledBy": ""
     }
   ],
   "reservations": [],
@@ -1879,6 +1906,30 @@
     ]
   },
   "activities": [
+    {
+      "id": 23,
+      "type": "loan.created",
+      "message": "Tao phieu muon #10: Bùi Đăng Anh muon 7 Thói Quen Hiệu Quả.",
+      "actor": "Bùi Đăng Anh",
+      "createdAt": "2026-06-04T04:41:48.225Z",
+      "metadata": {
+        "loanId": 10,
+        "readerId": 52,
+        "bookId": 27,
+        "dueDate": "2026-06-18"
+      }
+    },
+    {
+      "id": 22,
+      "type": "reader.created",
+      "message": "Dang ky doc gia moi: Bùi Đăng Anh.",
+      "actor": "He thong",
+      "createdAt": "2026-06-04T04:37:53.516Z",
+      "metadata": {
+        "userId": 3,
+        "email": "buidanganh0303@gmail.com"
+      }
+    },
     {
       "id": 21,
       "type": "book.bulk_created",

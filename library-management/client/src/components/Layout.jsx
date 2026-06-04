@@ -142,13 +142,13 @@ function Layout({ user, onLogout }) {
     }
   };
 
-  const handleNavigateToCreate = (page = "books") => {
+  const handleNavigateToCreate = useCallback((page = "books") => {
     if (!canManageLibrary) return;
 
     setEditingBook(null);
     setReturnPage(page);
     setCurrentPage("add-book");
-  };
+  }, [canManageLibrary]);
 
   const handleEditBook = (book, page = "books") => {
     if (!canManageLibrary) return;
@@ -164,6 +164,12 @@ function Layout({ user, onLogout }) {
   };
 
   const handleChangePage = useCallback((page) => {
+    const knownPages = ["dashboard", "books", "analytics", "profile", "add-book", "readers", "catalog", "borrow", "overdue", "activity"];
+    if (!knownPages.includes(page)) {
+      setCurrentPage("dashboard");
+      return;
+    }
+
     const adminPages = ["add-book", "readers", "catalog", "activity"];
     if (!canManageLibrary && adminPages.includes(page)) {
       setCurrentPage("dashboard");
@@ -202,7 +208,7 @@ function Layout({ user, onLogout }) {
 
     const notificationItems = notifications.map((item) => ({
       id: `notification-${item.id}`,
-      page: item.page,
+      page: item.page || item.target,
       title: item.title,
       meta: item.message,
       keywords: [item.title, item.message, item.tone].filter(Boolean).join(" "),
@@ -361,6 +367,8 @@ function Layout({ user, onLogout }) {
     overdue: <Overdue isAdmin={canManageLibrary} />,
     activity: isAdmin ? <ActivityLog /> : <Dashboard />,
   };
+  const activePageInfo = pageInfo[currentPage] || pageInfo.dashboard;
+  const activePageContent = pages[currentPage] || pages.dashboard;
 
   const toggleSidebar = () => {
     setSidebarCollapsed((s) => {
@@ -544,11 +552,11 @@ function Layout({ user, onLogout }) {
 
       <main className="main-content">
         <Header
-          title={pageInfo[currentPage].title}
-          subtitle={pageInfo[currentPage].subtitle}
+          title={activePageInfo.title}
+          subtitle={activePageInfo.subtitle}
           user={user}
           roleLabel={userRoleLabel}
-          currentPageLabel={pageInfo[currentPage].title}
+          currentPageLabel={activePageInfo.title}
           notifications={notifications}
           globalSearchItems={globalSearchItems}
           onNavigate={handleChangePage}
@@ -575,7 +583,7 @@ function Layout({ user, onLogout }) {
               <span>Bạn có thể tra cứu sách, mượn sách và theo dõi phiếu mượn của mình. Các chức năng quản trị sách và độc giả được ẩn.</span>
             </div>
           )}
-          {pages[currentPage]}
+          {activePageContent}
         </section>
       </main>
 

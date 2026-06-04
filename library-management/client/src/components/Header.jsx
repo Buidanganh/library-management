@@ -48,8 +48,9 @@ function Header({
   }, [globalSearchItems, normalizedQuery]);
 
   const handlePickResult = (item) => {
-    if (item.page && typeof onNavigate === "function") {
-      onNavigate(item.page);
+    const targetPage = item.page || item.target;
+    if (targetPage && typeof onNavigate === "function") {
+      onNavigate(targetPage);
     }
     setGlobalQuery("");
   };
@@ -130,7 +131,8 @@ function Header({
                     className={`notification-item ${item.tone || "info"}`}
                     key={item.id}
                     onClick={() => {
-                      if (item.page && typeof onNavigate === "function") onNavigate(item.page);
+                      const targetPage = item.page || item.target;
+                      if (targetPage && typeof onNavigate === "function") onNavigate(targetPage);
                       setNotificationsOpen(false);
                     }}
                   >

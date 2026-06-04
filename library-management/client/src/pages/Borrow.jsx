@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   BookCopy,
   CalendarClock,
   CheckCircle2,
@@ -147,7 +148,7 @@ function Borrow({ isAdmin = false }) {
   });
   const [returnModal, setReturnModal] = useState(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -168,7 +169,7 @@ function Borrow({ isAdmin = false }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -181,7 +182,7 @@ function Borrow({ isAdmin = false }) {
     };
 
     initialize();
-  }, []);
+  }, [loadData]);
 
   const selectedReader = useMemo(
     () => readers.find((reader) => reader.id === Number(formData.readerId)),
@@ -270,6 +271,21 @@ function Borrow({ isAdmin = false }) {
       filtered: filteredLoans.length,
     };
   }, [loans, filteredLoans]);
+
+  const reservationSummary = useMemo(() => {
+    const waiting = reservations.filter((item) => item.status === "waiting");
+    const ready = waiting.filter((item) => Number(item.availableQuantity || 0) > 0);
+    const blocked = waiting.filter((item) => Number(item.availableQuantity || 0) <= 0);
+
+    return {
+      total: reservations.length,
+      waiting: waiting.length,
+      ready: ready.length,
+      blocked: blocked.length,
+      fulfilled: reservations.filter((item) => item.status === "fulfilled").length,
+      cancelled: reservations.filter((item) => item.status === "cancelled").length,
+    };
+  }, [reservations]);
 
   const kanbanColumns = useMemo(
     () => [
@@ -983,7 +999,29 @@ function Borrow({ isAdmin = false }) {
               <h3>Hàng chờ đặt trước</h3>
               <p>Xử lý các yêu cầu đặt trước khi sách được trả hoặc có bản sẵn.</p>
             </div>
-            <span className="badge">{reservations.filter((item) => item.status === "waiting").length} đang chờ</span>
+            <span className="badge">{reservationSummary.waiting} đang chờ</span>
+          </div>
+          <div className="reservation-triage-grid">
+            <section className={reservationSummary.ready > 0 ? "success" : "neutral"}>
+              <strong>{reservationSummary.ready}</strong>
+              <span>Có thể tạo phiếu mượn</span>
+              <small>Sách đã có bản sẵn</small>
+            </section>
+            <section className={reservationSummary.blocked > 0 ? "warning" : "success"}>
+              <strong>{reservationSummary.blocked}</strong>
+              <span>Đang chờ sách</span>
+              <small>Cần theo dõi tồn kho</small>
+            </section>
+            <section className="primary">
+              <strong>{reservationSummary.fulfilled}</strong>
+              <span>Đã xử lý</span>
+              <small>Đặt trước đã hoàn tất</small>
+            </section>
+            <section className="neutral">
+              <strong>{reservationSummary.cancelled}</strong>
+              <span>Đã hủy</span>
+              <small>Yêu cầu không còn hiệu lực</small>
+            </section>
           </div>
           {reservations.length === 0 ? (
             <div className="empty-state compact">Chưa có yêu cầu đặt trước.</div>

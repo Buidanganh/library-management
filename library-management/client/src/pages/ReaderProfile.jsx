@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   CalendarClock,
@@ -94,7 +94,7 @@ function ReaderProfile({ user }) {
   const [historyFilter, setHistoryFilter] = useState("all");
   const [error, setError] = useState("");
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -116,11 +116,11 @@ function ReaderProfile({ user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.readerId]);
 
   useEffect(() => {
     loadProfile();
-  }, [user.readerId]);
+  }, [loadProfile]);
 
   const activeLoans = useMemo(
     () => loans.filter((loan) => loan.status === "borrowed" || loan.status === "overdue"),

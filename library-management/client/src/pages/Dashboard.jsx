@@ -274,6 +274,12 @@ function Dashboard({
     reminders: [],
     recentLoans: [],
     dueSoonLoans: [],
+    roleSummary: { admins: 0, librarians: 0, members: 0, locked: 0 },
+    notificationDigest: { total: 0, danger: 0, warning: 0, success: 0, info: 0 },
+    reservationQueue: { totalWaiting: 0, readyToFulfill: 0, blockedByStock: 0 },
+    bookForecast: [],
+    hotCategories: [],
+    topReservationBooks: [],
   });
   const [error, setError] = useState("");
   const [loadingStats, setLoadingStats] = useState(true);
@@ -327,6 +333,12 @@ function Dashboard({
         reminders: data.reminders ?? [],
         recentLoans: data.recentLoans ?? [],
         dueSoonLoans: data.dueSoonLoans ?? [],
+        roleSummary: data.roleSummary ?? { admins: 0, librarians: 0, members: 0, locked: 0 },
+        notificationDigest: data.notificationDigest ?? { total: 0, danger: 0, warning: 0, success: 0, info: 0 },
+        reservationQueue: data.reservationQueue ?? { totalWaiting: 0, readyToFulfill: 0, blockedByStock: 0 },
+        bookForecast: data.bookForecast ?? [],
+        hotCategories: data.hotCategories ?? [],
+        topReservationBooks: data.topReservationBooks ?? [],
       });
     } catch (err) {
       setError(err.message || "Không thể tải thống kê.");
@@ -518,7 +530,7 @@ function Dashboard({
       }));
       setBulkPreviewRows(preview);
       setBulkRowErrors(validateBulkRows(preview));
-    } catch (err) {
+    } catch {
       setBulkPreviewRows([]);
       setBulkRowErrors([]);
     }
@@ -698,6 +710,50 @@ function Dashboard({
       onClick: onNavigateToOverdue,
     },
   ].filter(Boolean);
+
+  const bigUpdates = [
+    {
+      label: "1. Phân quyền rõ ràng",
+      value: isAdmin
+        ? `${summary.roleSummary.admins} admin / ${summary.roleSummary.librarians} thủ thư`
+        : "Tài khoản độc giả",
+      detail: isAdmin
+        ? `${summary.roleSummary.members} thành viên, ${summary.roleSummary.locked} tài khoản đang khóa`
+        : "Bạn chỉ nhìn thấy hồ sơ và nghiệp vụ của mình.",
+      tone: summary.roleSummary.locked > 0 ? "warning" : "primary",
+      onClick: onNavigateToReaders,
+    },
+    {
+      label: "2. Đặt trước sách",
+      value: `${summary.reservationQueue.totalWaiting} đang chờ`,
+      detail: `${summary.reservationQueue.readyToFulfill} có thể chuyển sang mượn, ${summary.reservationQueue.blockedByStock} còn chờ sách`,
+      tone: summary.reservationQueue.totalWaiting > 0 ? "warning" : "success",
+      onClick: onNavigateToBorrow,
+    },
+    {
+      label: "3. Thông báo hệ thống",
+      value: `${summary.notificationDigest.total} nhắc việc`,
+      detail: `${summary.notificationDigest.danger} khẩn cấp, ${summary.notificationDigest.warning} cần theo dõi`,
+      tone: summary.notificationDigest.danger > 0 ? "danger" : summary.notificationDigest.warning > 0 ? "warning" : "success",
+      onClick: onNavigateToBorrow,
+    },
+    {
+      label: "4. Dashboard thông minh",
+      value: summary.hotCategories[0]?.category || "Chưa có xu hướng",
+      detail: summary.hotCategories[0]
+        ? `Điểm nhu cầu ${summary.hotCategories[0].demandScore}, ${summary.hotCategories[0].waitingReservations} đặt trước`
+        : "Sẽ tự cập nhật khi có dữ liệu mượn/đặt trước.",
+      tone: "primary",
+      onClick: onNavigateToAnalytics,
+    },
+    {
+      label: "5. UX ổn định hơn",
+      value: `${dashboardHealth.score}/100`,
+      detail: `${summary.missingImageBooks} sách thiếu ảnh, ${summary.lowStockBooks.length} sách cần kiểm kho`,
+      tone: dashboardHealth.score >= 80 ? "success" : dashboardHealth.score >= 55 ? "warning" : "danger",
+      onClick: onNavigateToBooks,
+    },
+  ];
 
   const commandCenter = isAdmin
     ? {
@@ -1042,6 +1098,29 @@ function Dashboard({
         </div>
       </div>
 
+      <div className="table-card big-update-panel mb-4">
+        <div className="table-card-header row-between">
+          <div>
+            <span className="page-eyebrow">5 nâng cấp lớn</span>
+            <h3>Trung tâm ưu tiên sản phẩm</h3>
+            <p>Mỗi thẻ là một mảng đã được nối với dữ liệu thật của hệ thống để dễ test và mở rộng.</p>
+          </div>
+          <button className="secondary-button" type="button" onClick={refreshStats} disabled={loadingStats}>
+            <RefreshCw size={16} />
+            <span>{loadingStats ? "Đang tải..." : "Cập nhật số liệu"}</span>
+          </button>
+        </div>
+        <div className="big-update-grid">
+          {bigUpdates.map((item) => (
+            <button className={`big-update-card ${item.tone}`} type="button" key={item.label} onClick={item.onClick}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="dashboard-insight-panel mb-4">
         <div className="library-score-card">
           <div className="library-score-ring" style={{ "--score": dashboardHealth.score }}>
@@ -1231,6 +1310,52 @@ function Dashboard({
                   Phạt phát sinh
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-lg-6">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <h5 className="card-title">Nhu cầu sách theo thể loại</h5>
+              {summary.hotCategories.length === 0 ? (
+                <div className="text-muted">Chưa đủ dữ liệu để dự báo nhu cầu.</div>
+              ) : (
+                <div className="forecast-list">
+                  {summary.hotCategories.map((item) => (
+                    <div className="forecast-item" key={item.category}>
+                      <div>
+                        <strong>{item.category}</strong>
+                        <span>{item.borrowCount} lượt mượn, {item.waitingReservations} đặt trước</span>
+                      </div>
+                      <b>{item.demandScore}</b>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-lg-6">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <h5 className="card-title">Hàng chờ đặt trước</h5>
+              {summary.topReservationBooks.length === 0 ? (
+                <div className="text-muted">Không có sách nào đang có hàng chờ.</div>
+              ) : (
+                <div className="forecast-list">
+                  {summary.topReservationBooks.map((book) => (
+                    <button className="forecast-item button-reset" type="button" key={book.id} onClick={onNavigateToBorrow}>
+                      <div>
+                        <strong>{book.title}</strong>
+                        <span>{book.author || "Chưa rõ tác giả"}</span>
+                      </div>
+                      <b>{book.waitingCount}</b>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

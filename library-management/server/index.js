@@ -5,13 +5,17 @@ const { readData, writeData } = require("./database");
 const PORT = Number(process.env.PORT || 4000);
 const MAX_ACTIVE_LOANS_PER_READER = 5;
 const DAILY_OVERDUE_FINE = 20000;
+const SESSION_SECRET = process.env.SESSION_SECRET || "library-management-local-session-secret";
+const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+const ALLOW_INSECURE_DEV_HEADERS = process.env.ALLOW_INSECURE_DEV_HEADERS === "true";
+const ALLOWED_HEADERS = "Content-Type, Authorization, x-auth-token, x-user-role, x-user-id, x-user-email";
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-user-role, x-user-id, x-user-email",
+    "Access-Control-Allow-Headers": ALLOWED_HEADERS,
   });
   res.end(JSON.stringify(payload));
 }
@@ -20,7 +24,7 @@ function sendNoContent(res) {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-user-role, x-user-id, x-user-email",
+    "Access-Control-Allow-Headers": ALLOWED_HEADERS,
   });
   res.end();
 }
@@ -81,33 +85,71 @@ function publicUserWithReader(data, user) {
   };
 }
 
-function isAdminRequest(req) {
-  return String(req.headers["x-user-role"] || "").toLowerCase() === "admin";
+function base64UrlEncode(value) {
+  return Buffer.from(value).toString("base64url");
 }
 
-function isStaffRequest(req) {
-  return ["admin", "librarian"].includes(String(req.headers["x-user-role"] || "").toLowerCase());
+function signTokenPayload(payload) {
+  return crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
 }
 
-function requireAdmin(req, res) {
-  if (isStaffRequest(req)) {
-    return true;
+function createSessionToken(user) {
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      exp: Date.now() + SESSION_MAX_AGE_MS,
+    })
+  );
+  return `${payload}.${signTokenPayload(payload)}`;
+}
+
+function readRequestToken(req) {
+  const authHeader = String(req.headers.authorization || "").trim();
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    return authHeader.slice(7).trim();
   }
 
-  sendJson(res, 403, { error: "Chi quan tri vien hoac thu thu moi co quyen thuc hien thao tac nay." });
-  return false;
+  return String(req.headers["x-auth-token"] || "").trim();
 }
 
-function requireAdminOnly(req, res) {
-  if (isAdminRequest(req)) {
-    return true;
+function verifySessionToken(data, req) {
+  const token = readRequestToken(req);
+  if (!token) return null;
+
+  const [payload, signature] = token.split(".");
+  if (!payload || !signature || signature !== signTokenPayload(payload)) {
+    return null;
   }
 
-  sendJson(res, 403, { error: "Chi admin moi co quyen thuc hien thao tac nay." });
-  return false;
+  try {
+    const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!session.sub || Date.now() > Number(session.exp || 0)) return null;
+
+    const user = data.users.find((item) => item.id === Number(session.sub));
+    if (!user || user.email !== session.email || user.role !== session.role) return null;
+    if ((user.status || "active") === "locked") return null;
+
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+function authResponse(data, user) {
+  return {
+    ...publicUserWithReader(data, user),
+    token: createSessionToken(user),
+  };
 }
 
 function getRequestUser(data, req) {
+  const sessionUser = verifySessionToken(data, req);
+  if (sessionUser) return sessionUser;
+
+  if (!ALLOW_INSECURE_DEV_HEADERS) return null;
+
   const userId = Number(req.headers["x-user-id"]);
   const email = String(req.headers["x-user-email"] || "").trim().toLowerCase();
 
@@ -121,6 +163,32 @@ function getRequestUser(data, req) {
   }
 
   return null;
+}
+
+function isAdminRequest(data, req) {
+  return getRequestUser(data, req)?.role === "admin";
+}
+
+function isStaffRequest(data, req) {
+  return ["admin", "librarian"].includes(getRequestUser(data, req)?.role);
+}
+
+function requireAdmin(data, req, res) {
+  if (isStaffRequest(data, req)) {
+    return true;
+  }
+
+  sendJson(res, 403, { error: "Chi quan tri vien hoac thu thu moi co quyen thuc hien thao tac nay." });
+  return false;
+}
+
+function requireAdminOnly(data, req, res) {
+  if (isAdminRequest(data, req)) {
+    return true;
+  }
+
+  sendJson(res, 403, { error: "Chi admin moi co quyen thuc hien thao tac nay." });
+  return false;
 }
 
 function getReaderForUser(data, user) {
@@ -306,7 +374,7 @@ function decorateLoans(data) {
 function buildNotifications(data, req) {
   const loans = decorateLoans(data);
   const reservations = decorateReservations(data);
-  const isStaff = isStaffRequest(req);
+  const isStaff = isStaffRequest(data, req);
   const reader = isStaff ? null : getReaderForUser(data, getRequestUser(data, req));
   const visibleLoans = isStaff ? loans : loans.filter((loan) => loan.readerId === reader?.id);
   const visibleReservations = isStaff
@@ -465,7 +533,7 @@ async function handleAuth(req, res, pathname) {
       return;
     }
 
-    sendJson(res, 200, publicUserWithReader(data, user));
+    sendJson(res, 200, authResponse(data, user));
     return;
   }
 
@@ -506,7 +574,7 @@ async function handleAuth(req, res, pathname) {
       email: user.email,
     });
     await writeData(data);
-    sendJson(res, 201, publicUserWithReader(data, user));
+    sendJson(res, 201, authResponse(data, user));
     return;
   }
 
@@ -523,7 +591,7 @@ async function handleBooks(req, res, pathname) {
   }
 
   if (req.method === "POST" && pathname === "/api/books") {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const body = await parseBody(req);
     const { book, error } = validateBook(body);
@@ -546,7 +614,7 @@ async function handleBooks(req, res, pathname) {
   }
 
   if (req.method === "POST" && pathname === "/api/books/bulk") {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const body = await parseBody(req);
     if (!Array.isArray(body) || body.length === 0) {
@@ -575,7 +643,7 @@ async function handleBooks(req, res, pathname) {
   }
 
   if (req.method === "PUT" && idMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const bookId = Number(idMatch[1]);
     const existingIndex = data.books.findIndex((book) => book.id === bookId);
@@ -615,7 +683,7 @@ async function handleBooks(req, res, pathname) {
   }
 
   if (req.method === "DELETE" && idMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const bookId = Number(idMatch[1]);
     const hasActiveLoan = data.loans.some(
@@ -656,7 +724,7 @@ async function handleReaders(req, res, pathname) {
   const idMatch = pathname.match(/^\/(?:api\/)?readers\/([^/]+)$/);
 
   if (req.method === "GET" && pathname === "/api/readers") {
-    if (isStaffRequest(req)) {
+    if (isStaffRequest(data, req)) {
       sendJson(res, 200, decorateReaders(data));
       return;
     }
@@ -676,7 +744,7 @@ async function handleReaders(req, res, pathname) {
   }
 
   if (req.method === "PATCH" && accountMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const readerId = Number(accountMatch[1]);
     const reader = data.readers.find((item) => item.id === readerId);
@@ -709,7 +777,7 @@ async function handleReaders(req, res, pathname) {
     }
 
     if (role !== undefined) {
-      if (!requireAdminOnly(req, res)) return;
+      if (!requireAdminOnly(data, req, res)) return;
 
       if (!["admin", "librarian", "user", "member"].includes(role)) {
         sendJson(res, 400, { error: "Vai tro tai khoan khong hop le." });
@@ -771,7 +839,7 @@ async function handleReaders(req, res, pathname) {
       return;
     }
 
-    if (!isStaffRequest(req)) {
+    if (!isStaffRequest(data, req)) {
       const currentReader = requireReaderForUser(data, req, res);
       if (!currentReader) return;
 
@@ -792,7 +860,7 @@ async function handleReaders(req, res, pathname) {
   }
 
   if (req.method === "POST" && pathname === "/api/readers") {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const body = await parseBody(req);
     const { reader, error } = validateReader(body);
@@ -822,7 +890,7 @@ async function handleReaders(req, res, pathname) {
   }
 
   if (req.method === "POST" && pathname === "/api/readers/bulk") {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const body = await parseBody(req);
     if (!Array.isArray(body) || body.length === 0) {
@@ -861,7 +929,7 @@ async function handleReaders(req, res, pathname) {
   }
 
   if (req.method === "PUT" && idMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const readerId = Number(idMatch[1]);
     if (!Number.isInteger(readerId) || readerId <= 0) {
@@ -916,7 +984,7 @@ async function handleReaders(req, res, pathname) {
   }
 
   if (req.method === "DELETE" && idMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const readerId = Number(idMatch[1]);
     if (!Number.isInteger(readerId) || readerId <= 0) {
@@ -982,7 +1050,7 @@ async function handleLoans(req, res, pathname) {
   if (req.method === "GET" && pathname === "/api/loans") {
     const loans = decorateLoans(data);
 
-    if (isStaffRequest(req)) {
+    if (isStaffRequest(data, req)) {
       sendJson(res, 200, loans);
       return;
     }
@@ -996,7 +1064,7 @@ async function handleLoans(req, res, pathname) {
 
   if (req.method === "POST" && pathname === "/api/loans") {
     const body = await parseBody(req);
-    const reader = isStaffRequest(req)
+    const reader = isStaffRequest(data, req)
       ? data.readers.find((item) => item.id === Number(body.readerId))
       : requireReaderForUser(data, req, res);
 
@@ -1072,7 +1140,7 @@ async function handleLoans(req, res, pathname) {
   }
 
   if (req.method === "PATCH" && fineMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const loanId = Number(fineMatch[1]);
     const loan = data.loans.find((item) => item.id === loanId);
@@ -1122,7 +1190,7 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
-    if (!isStaffRequest(req)) {
+    if (!isStaffRequest(data, req)) {
       const reader = requireReaderForUser(data, req, res);
       if (!reader) return;
 
@@ -1175,7 +1243,7 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
-    if (!isStaffRequest(req)) {
+    if (!isStaffRequest(data, req)) {
       const reader = requireReaderForUser(data, req, res);
       if (!reader) return;
 
@@ -1209,7 +1277,7 @@ async function handleStats(req, res) {
   const data = await readData();
   const loans = decorateLoans(data);
   const books = decorateBooks(data);
-  const isAdmin = isStaffRequest(req);
+  const isAdmin = isStaffRequest(data, req);
   const reader = isAdmin ? null : requireReaderForUser(data, req, res);
 
   if (!isAdmin && !reader) {
@@ -1277,6 +1345,82 @@ async function handleStats(req, res) {
   const reminders = [...overdueLoans, ...dueSoonLoans]
     .sort((first, second) => new Date(first.dueDate) - new Date(second.dueDate))
     .slice(0, 8);
+  const notificationItems = buildNotifications(data, req);
+  const notificationDigest = notificationItems.reduce(
+    (digest, item) => {
+      const tone = item.tone || "info";
+      digest.total += 1;
+      digest[tone] = (digest[tone] || 0) + 1;
+      return digest;
+    },
+    { total: 0, danger: 0, warning: 0, success: 0, info: 0 }
+  );
+  const roleSummary = isAdmin
+    ? data.users.reduce(
+        (summary, user) => {
+          const role = user.role === "librarian" ? "librarians" : user.role === "admin" ? "admins" : "members";
+          summary[role] += 1;
+          if ((user.status || "active") === "locked") summary.locked += 1;
+          return summary;
+        },
+        { admins: 0, librarians: 0, members: 0, locked: 0 }
+      )
+    : { admins: 0, librarians: 0, members: 1, locked: 0 };
+  const categoryCounts = visibleLoans.reduce((counts, loan) => {
+    const book = data.books.find((item) => item.id === loan.bookId);
+    if (!book?.category) return counts;
+    counts[book.category] = (counts[book.category] || 0) + 1;
+    return counts;
+  }, {});
+  const categoryWaitCounts = visibleReservations.reduce((counts, reservation) => {
+    const book = data.books.find((item) => item.id === reservation.bookId);
+    if (!book?.category) return counts;
+    counts[book.category] = (counts[book.category] || 0) + 1;
+    return counts;
+  }, {});
+  const reservationQueue = {
+    totalWaiting: waitingReservations.length,
+    readyToFulfill: visibleReservations.filter(
+      (reservation) => reservation.status === "waiting" && Number(reservation.availableQuantity || 0) > 0
+    ).length,
+    blockedByStock: visibleReservations.filter(
+      (reservation) => reservation.status === "waiting" && Number(reservation.availableQuantity || 0) <= 0
+    ).length,
+  };
+  const bookForecast = Object.entries(categoryCounts)
+    .map(([category, borrowCount]) => ({
+      category,
+      borrowCount,
+      waitingReservations: categoryWaitCounts[category] || 0,
+    }))
+    .sort((first, second) => second.borrowCount - first.borrowCount)
+    .slice(0, 4);
+  const hotCategories = Object.entries(categoryCounts)
+    .map(([category, borrowCount]) => ({
+      category,
+      borrowCount,
+      waitingReservations: categoryWaitCounts[category] || 0,
+      demandScore: borrowCount + (categoryWaitCounts[category] || 0) * 2,
+    }))
+    .sort((first, second) => second.demandScore - first.demandScore)
+    .slice(0, 4);
+  const topReservationBooks = Object.values(
+    visibleReservations.reduce((counts, reservation) => {
+      const book = data.books.find((item) => item.id === reservation.bookId);
+      if (!book) return counts;
+      const key = String(book.id);
+      counts[key] = counts[key] || {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        waitingCount: 0,
+      };
+      counts[key].waitingCount += 1;
+      return counts;
+    }, {})
+  )
+    .sort((first, second) => second.waitingCount - first.waitingCount)
+    .slice(0, 4);
 
   sendJson(res, 200, {
     totalBooks: data.books.reduce((total, book) => total + Number(book.quantity || 0), 0),
@@ -1325,6 +1469,12 @@ async function handleStats(req, res) {
         .filter((loan) => loan.fineStatus === "paid")
         .reduce((total, loan) => total + Number(loan.fineAmount || 0), 0),
     },
+    roleSummary,
+    notificationDigest,
+    reservationQueue,
+    bookForecast,
+    hotCategories,
+    topReservationBooks,
     monthlyActivity,
     monthlyFines,
     reminders,
@@ -1341,7 +1491,7 @@ async function handleReservations(req, res, pathname) {
   const idMatch = pathname.match(/^\/api\/reservations\/(\d+)$/);
 
   if (req.method === "GET" && pathname === "/api/reservations") {
-    if (isStaffRequest(req)) {
+    if (isStaffRequest(data, req)) {
       sendJson(res, 200, decorateReservations(data).sort((first, second) => second.id - first.id));
       return;
     }
@@ -1368,7 +1518,7 @@ async function handleReservations(req, res, pathname) {
       return;
     }
 
-    const reader = isStaffRequest(req)
+    const reader = isStaffRequest(data, req)
       ? data.readers.find((item) => item.id === Number(body.readerId))
       : requireReaderForUser(data, req, res);
     if (!reader) return;
@@ -1405,7 +1555,7 @@ async function handleReservations(req, res, pathname) {
   }
 
   if (req.method === "PATCH" && idMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const reservation = (data.reservations || []).find((item) => item.id === Number(idMatch[1]));
     if (!reservation) {
@@ -1506,7 +1656,7 @@ async function handleReviews(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/reviews") {
     const reviews = decorateReviews(data).sort((first, second) => second.id - first.id);
-    sendJson(res, 200, isStaffRequest(req) ? reviews : reviews.filter((review) => review.status !== "hidden"));
+    sendJson(res, 200, isStaffRequest(data, req) ? reviews : reviews.filter((review) => review.status !== "hidden"));
     return;
   }
 
@@ -1574,7 +1724,7 @@ async function handleCatalog(req, res, pathname) {
   }
 
   if (req.method === "POST" && pathname === "/api/catalog") {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const body = await parseBody(req);
     const type = String(body.type || "").trim();
@@ -1593,7 +1743,7 @@ async function handleCatalog(req, res, pathname) {
   }
 
   if (req.method === "DELETE" && valueMatch) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdmin(data, req, res)) return;
 
     const type = valueMatch[1];
     const name = decodeURIComponent(valueMatch[2]);
@@ -1611,7 +1761,7 @@ async function handleCatalog(req, res, pathname) {
 async function handleActivities(req, res, url) {
   const data = await readData();
 
-  if (!requireAdmin(req, res)) return;
+  if (!requireAdmin(data, req, res)) return;
 
   if (req.method === "DELETE") {
     const beforeCount = Array.isArray(data.activities) ? data.activities.length : 0;
@@ -1641,7 +1791,7 @@ async function handleActivities(req, res, url) {
 async function handleNotifications(req, res) {
   const data = await readData();
 
-  if (!isStaffRequest(req)) {
+  if (!isStaffRequest(data, req)) {
     const reader = requireReaderForUser(data, req, res);
     if (!reader) return;
   }
@@ -1650,9 +1800,9 @@ async function handleNotifications(req, res) {
 }
 
 async function handleBackup(req, res) {
-  if (!requireAdminOnly(req, res)) return;
-
   const data = await readData();
+  if (!requireAdminOnly(data, req, res)) return;
+
   sendJson(res, 200, {
     exportedAt: new Date().toISOString(),
     version: 1,

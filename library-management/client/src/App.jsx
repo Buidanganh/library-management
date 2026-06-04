@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Layout from "./components/Layout";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const MOJIBAKE_PATTERN = /Ã|Æ|Â|â€/;
 
@@ -14,6 +15,11 @@ function readSavedUser() {
     const user = JSON.parse(savedUser);
 
     if (MOJIBAKE_PATTERN.test(JSON.stringify(user))) {
+      localStorage.removeItem("libraryUser");
+      return null;
+    }
+
+    if (!user.token) {
       localStorage.removeItem("libraryUser");
       return null;
     }
@@ -59,7 +65,7 @@ function App() {
   };
 
   return (
-    <>
+    <ErrorBoundary>
       <Routes>
         <Route
           path="/login"
@@ -102,7 +108,7 @@ function App() {
           </div>
         ))}
       </div>
-    </>
+    </ErrorBoundary>
   );
 }
 

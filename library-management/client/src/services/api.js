@@ -37,9 +37,7 @@ function request(path, options = {}) {
   const user = readSavedUser();
   const headers = {
     ...(options.headers || {}),
-    ...(user?.role ? { "x-user-role": user.role } : {}),
-    ...(user?.id ? { "x-user-id": String(user.id) } : {}),
-    ...(user?.email ? { "x-user-email": user.email } : {}),
+    ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {}),
   };
 
   return fetch(`${API_URL}${path}`, {

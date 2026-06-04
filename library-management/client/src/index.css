@@ -2627,6 +2627,167 @@ select {
   background: linear-gradient(135deg, rgba(220, 252, 231, 0.95), #ffffff);
 }
 
+.big-update-panel {
+  overflow: hidden;
+}
+
+.big-update-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.big-update-card {
+  min-height: 148px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 16px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.big-update-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.big-update-card span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.big-update-card strong {
+  font-size: clamp(1rem, 1.2vw, 1.25rem);
+  line-height: 1.25;
+}
+
+.big-update-card small {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.big-update-card.success {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.08), var(--surface));
+}
+
+.big-update-card.warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.1), var(--surface));
+}
+
+.big-update-card.danger {
+  border-color: rgba(220, 38, 38, 0.26);
+  background: linear-gradient(180deg, rgba(220, 38, 38, 0.09), var(--surface));
+}
+
+.big-update-card.primary {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), var(--surface));
+}
+
+.forecast-list {
+  display: grid;
+  gap: 10px;
+}
+
+.forecast-item {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.forecast-item div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.forecast-item strong,
+.forecast-item span {
+  overflow-wrap: anywhere;
+}
+
+.forecast-item span {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.forecast-item b {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+}
+
+.button-reset {
+  font: inherit;
+  cursor: pointer;
+}
+
+.reservation-triage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.reservation-triage-grid section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.reservation-triage-grid strong {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.reservation-triage-grid span {
+  font-weight: 800;
+}
+
+.reservation-triage-grid small {
+  color: var(--text-muted);
+}
+
+.reservation-triage-grid section.success {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.reservation-triage-grid section.warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.reservation-triage-grid section.primary {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(37, 99, 235, 0.08);
+}
+
 .dashboard-command-center {
   border: 1px solid rgba(191, 219, 254, 0.88);
   border-radius: 16px;
@@ -7027,6 +7188,14 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .big-update-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reservation-triage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .dashboard-page > .dashboard-hero {
     flex-direction: column;
   }
@@ -7217,6 +7386,20 @@ button:disabled {
   .nav-link,
   .menu-item {
     padding: 12px 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .big-update-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-triage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .big-update-card {
+    min-height: 124px;
   }
 }
 
@@ -7546,4 +7729,35 @@ button:disabled {
   .books-quick-filters .quick-filter-chip {
     flex: 0 0 auto;
   }
+}
+.app-fallback {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.app-fallback h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.app-fallback p {
+  max-width: 620px;
+  margin: 0 auto;
+  color: #475569;
+}
+
+.app-fallback button {
+  justify-self: center;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #fff;
+  background: #2563eb;
+  font-weight: 700;
 }

@@ -68,6 +68,10 @@ function Analytics({ onNavigateToBooks, onNavigateToBorrow, onNavigateToOverdue 
       .slice(0, 6)
       .map((book) => ({ label: book.title, detail: book.author, value: Number(book.borrowedCount || 0) }));
     const monthlyActivity = summary?.monthlyActivity || [];
+    const reservationQueue = summary?.reservationQueue || { totalWaiting: 0, readyToFulfill: 0, blockedByStock: 0 };
+    const bookForecast = summary?.bookForecast || [];
+    const hotCategories = summary?.hotCategories || [];
+    const topReservationBooks = summary?.topReservationBooks || [];
     const monthlyMax = Math.max(
       1,
       ...monthlyActivity.map((item) => Math.max(Number(item.borrowed || 0), Number(item.returned || 0)))
@@ -87,6 +91,10 @@ function Analytics({ onNavigateToBooks, onNavigateToBorrow, onNavigateToOverdue 
       topMax,
       monthlyActivity,
       monthlyMax,
+      reservationQueue,
+      bookForecast,
+      hotCategories,
+      topReservationBooks,
       circulationRate: totalCopies ? clamp((activeLoans.length / totalCopies) * 100) : 0,
       availableRate: totalCopies ? clamp((availableBooks / totalCopies) * 100) : 0,
       overdueRate: clamp((overdueLoans.length / activeTotal) * 100),
@@ -126,6 +134,14 @@ function Analytics({ onNavigateToBooks, onNavigateToBorrow, onNavigateToOverdue 
       tone: analytics.missingImageRate > 0 ? "warning" : "success",
       icon: BookOpen,
       onClick: onNavigateToBooks,
+    },
+    {
+      label: "Đặt trước chờ",
+      value: `${analytics.reservationQueue.totalWaiting}`,
+      helper: `${analytics.reservationQueue.readyToFulfill} sẵn sàng`,
+      tone: analytics.reservationQueue.totalWaiting > 0 ? "warning" : "success",
+      icon: CalendarDays,
+      onClick: onNavigateToBorrow,
     },
   ];
 
@@ -212,6 +228,76 @@ function Analytics({ onNavigateToBooks, onNavigateToBorrow, onNavigateToOverdue 
               </div>
             </section>
           </div>
+
+          <section className="table-card analytics-panel">
+            <div className="table-card-header row-between">
+              <div>
+                <h3>Dự báo nhu cầu</h3>
+                <p>Xem thể loại mượn nhiều nhất và lượng đặt trước đang chờ.</p>
+              </div>
+            </div>
+            {analytics.bookForecast.length === 0 ? (
+              <div className="text-muted">Chưa có dữ liệu dự báo nhu cầu.</div>
+            ) : (
+              <div className="forecast-list">
+                {analytics.bookForecast.map((item) => (
+                  <div className="forecast-list-item" key={item.category}>
+                    <strong>{item.category}</strong>
+                    <span>{item.borrowCount} lượt mượn</span>
+                    <small>{item.waitingReservations} lượt đặt chờ</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="table-card analytics-panel">
+            <div className="table-card-header row-between">
+              <div>
+                <h3>Thể loại nóng</h3>
+                <p>Định hướng bổ sung sách theo điểm nhu cầu mượn + đặt trước.</p>
+              </div>
+            </div>
+            {analytics.hotCategories.length === 0 ? (
+              <div className="text-muted">Chưa có dữ liệu thể loại nóng.</div>
+            ) : (
+              <div className="analytics-bar-list">
+                {analytics.hotCategories.map((item) => (
+                  <div className="analytics-bar-row" key={item.category}>
+                    <span>{item.category}</span>
+                    <div>
+                      <i style={{ width: `${Math.max(8, (item.demandScore / Math.max(1, analytics.hotCategories[0]?.demandScore || 1)) * 100)}%` }} />
+                    </div>
+                    <strong>{item.borrowCount} mượn / {item.waitingReservations} đặt</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="table-card analytics-panel">
+            <div className="table-card-header row-between">
+              <div>
+                <h3>Sách đặt trước nhiều nhất</h3>
+                <p>Những đầu sách có hàng chờ lớn nhất để ưu tiên luân chuyển.</p>
+              </div>
+            </div>
+            {analytics.topReservationBooks.length === 0 ? (
+              <div className="text-muted">Chưa có sách đặt trước.</div>
+            ) : (
+              <div className="analytics-rank-list">
+                {analytics.topReservationBooks.map((item) => (
+                  <button type="button" key={item.id} onClick={onNavigateToBorrow}>
+                    <strong>{item.waitingCount}</strong>
+                    <span>
+                      <b>{item.title}</b>
+                      <small>{item.author || "Chưa rõ tác giả"}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
 
           <section className="table-card analytics-panel">
             <div className="table-card-header row-between">

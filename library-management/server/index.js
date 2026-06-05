@@ -1421,6 +1421,31 @@ async function handleStats(req, res) {
   )
     .sort((first, second) => second.waitingCount - first.waitingCount)
     .slice(0, 4);
+  const recommendedBooks = books
+    .filter((book) => Number(book.availableQuantity || 0) > 0)
+    .map((book) => {
+      const categoryDemand = categoryCounts[book.category] || 0;
+      const waitingDemand = categoryWaitCounts[book.category] || 0;
+      const demandScore = categoryDemand * 2 + waitingDemand + Math.min(3, Number(book.availableQuantity || 0));
+      const recommendationReason =
+        categoryDemand > 0
+          ? "Thể loại bạn quan tâm"
+          : waitingDemand > 0
+            ? "Đang có độc giả đặt trước cùng thể loại"
+            : "Sách còn bản sẵn để giới thiệu";
+
+      return {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        category: book.category,
+        availableQuantity: book.availableQuantity,
+        demandScore,
+        recommendationReason,
+      };
+    })
+    .sort((first, second) => second.demandScore - first.demandScore || Number(second.availableQuantity || 0) - Number(first.availableQuantity || 0))
+    .slice(0, 5);
 
   sendJson(res, 200, {
     totalBooks: data.books.reduce((total, book) => total + Number(book.quantity || 0), 0),
@@ -1475,6 +1500,7 @@ async function handleStats(req, res) {
     bookForecast,
     hotCategories,
     topReservationBooks,
+    recommendedBooks,
     monthlyActivity,
     monthlyFines,
     reminders,

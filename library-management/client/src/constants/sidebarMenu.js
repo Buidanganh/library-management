@@ -6,7 +6,9 @@ import {
   ClipboardList,
   History,
   LayoutDashboard,
+  Radar,
   Repeat,
+  ShieldCheck,
   UserCircle,
   UserRound,
 } from "lucide-react";
@@ -19,6 +21,7 @@ export const sidebarSections = [
 
 export const sidebarMenuItems = [
   { id: "dashboard", label: "Tổng quan", icon: LayoutDashboard, section: "main", shortcut: "1" },
+  { id: "operations", label: "Vận hành", icon: Radar, section: "main", shortcut: "o" },
   { id: "books", label: "Quản lý sách", icon: BookOpen, section: "main", shortcut: "2" },
   { id: "analytics", label: "Phân tích", icon: BarChart3, section: "main", shortcut: "0" },
   { id: "profile", label: "Cá nhân", icon: UserCircle, section: "reader", shortcut: "3", userOnly: true },
@@ -27,5 +30,6 @@ export const sidebarMenuItems = [
   { id: "add-book", label: "Thêm sách", icon: BookPlus, section: "admin", shortcut: "6", adminOnly: true },
   { id: "readers", label: "Độc giả", icon: UserRound, section: "admin", shortcut: "7", adminOnly: true },
   { id: "catalog", label: "Danh mục", icon: ClipboardList, section: "admin", shortcut: "8", adminOnly: true },
+  { id: "permissions", label: "Phân quyền", icon: ShieldCheck, section: "admin", shortcut: "p", adminOnly: true, systemAdminOnly: true },
   { id: "activity", label: "Nhật ký", icon: History, section: "admin", shortcut: "9", adminOnly: true, systemAdminOnly: true },
 ];

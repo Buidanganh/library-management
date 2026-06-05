@@ -1849,7 +1849,18 @@
     }
   ],
   "reservations": [],
-  "reviews": [],
+  "reviews": [
+    {
+      "id": 1,
+      "bookId": 27,
+      "readerId": 52,
+      "rating": 5,
+      "comment": "Tuyệt vời",
+      "status": "visible",
+      "createdAt": "2026-06-04T04:49:45.653Z",
+      "updatedAt": "2026-06-04T04:49:45.653Z"
+    }
+  ],
   "catalog": {
     "categories": [
       "Địa lý",
@@ -1906,6 +1917,20 @@
     ]
   },
   "activities": [
+    {
+      "id": 24,
+      "type": "review.created",
+      "message": "Danh gia sach 7 Thói Quen Hiệu Quả: 5 sao.",
+      "actor": "Bùi Đăng Anh",
+      "createdAt": "2026-06-04T04:49:45.654Z",
+      "metadata": {
+        "reviewId": 1,
+        "bookId": 27,
+        "bookTitle": "7 Thói Quen Hiệu Quả",
+        "readerId": 52,
+        "rating": 5
+      }
+    },
     {
       "id": 23,
       "type": "loan.created",

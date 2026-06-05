@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import LibraryAssistant from "./LibraryAssistant";
 import Dashboard from "../pages/Dashboard";
 import Analytics from "../pages/Analytics";
 import Books from "../pages/Books";
@@ -11,6 +12,8 @@ import Overdue from "../pages/Overdue";
 import ActivityLog from "../pages/ActivityLog";
 import ReaderProfile from "../pages/ReaderProfile";
 import Catalog from "../pages/Catalog";
+import Permissions from "../pages/Permissions";
+import Operations from "../pages/Operations";
 import { sidebarMenuItems } from "../constants/sidebarMenu";
 import { borrowBook, createBook, deleteBook, getNotifications, getStats, updateBook } from "../services/api";
 
@@ -164,13 +167,13 @@ function Layout({ user, onLogout }) {
   };
 
   const handleChangePage = useCallback((page) => {
-    const knownPages = ["dashboard", "books", "analytics", "profile", "add-book", "readers", "catalog", "borrow", "overdue", "activity"];
+    const knownPages = ["dashboard", "operations", "books", "analytics", "profile", "add-book", "readers", "catalog", "permissions", "borrow", "overdue", "activity"];
     if (!knownPages.includes(page)) {
       setCurrentPage("dashboard");
       return;
     }
 
-    const adminPages = ["add-book", "readers", "catalog", "activity"];
+    const adminPages = ["add-book", "readers", "catalog", "permissions", "activity"];
     if (!canManageLibrary && adminPages.includes(page)) {
       setCurrentPage("dashboard");
       return;
@@ -224,15 +227,17 @@ function Layout({ user, onLogout }) {
         kind: "Trang",
         run: () => item.page && handleChangePage(item.page),
       })),
+      { id: "cmd-operations", title: "Mở trung tâm vận hành", meta: "Library OS, cảnh báo, workflow, gợi ý", kind: "Vận hành", run: () => handleChangePage("operations") },
       { id: "cmd-books-attention", title: "Mở kho sách cần xử lý", meta: "Sách sắp hết, hết, thiếu ảnh", kind: "Tác vụ", run: () => handleChangePage("books") },
       { id: "cmd-borrow", title: "Mở kanban mượn trả", meta: "Điều phối phiếu đang mượn", kind: "Tác vụ", run: () => handleChangePage("borrow") },
       { id: "cmd-analytics", title: "Mở phân tích thư viện", meta: "Biểu đồ thể loại, mượn trả, quá hạn", kind: "Báo cáo", run: () => handleChangePage("analytics") },
+      isAdmin && { id: "cmd-permissions", title: "Mở ma trận phân quyền", meta: "Vai trò admin, thủ thư, độc giả", kind: "Quản trị", run: () => handleChangePage("permissions") },
       canManageLibrary && { id: "cmd-add-book", title: "Thêm sách mới", meta: "Biên mục đầu sách", kind: "Tác vụ", run: () => handleNavigateToCreate("books") },
       { id: "cmd-toggle-theme", title: theme === "dark" ? "Chuyển giao diện sáng" : "Chuyển giao diện tối", meta: "Theme", kind: "Hiển thị", run: () => setTheme((value) => (value === "dark" ? "light" : "dark")) },
       { id: "cmd-toggle-density", title: density === "compact" ? "Chuyển giao diện thoáng" : "Chuyển giao diện gọn", meta: "Density", kind: "Hiển thị", run: () => setDensity((value) => (value === "compact" ? "comfortable" : "compact")) },
       { id: "cmd-toggle-focus", title: focusMode ? "Tắt Focus mode" : "Bật Focus mode", meta: "Ẩn sidebar/header phụ", kind: "Hiển thị", run: () => setFocusMode((value) => !value) },
     ].filter(Boolean),
-    [globalSearchItems, handleChangePage, handleNavigateToCreate, canManageLibrary, theme, density, focusMode]
+    [globalSearchItems, handleChangePage, handleNavigateToCreate, canManageLibrary, isAdmin, theme, density, focusMode]
   );
 
   const commandResults = useMemo(() => {
@@ -268,6 +273,10 @@ function Layout({ user, onLogout }) {
       title: "Tổng quan",
       subtitle: "Nhìn tổng quan hoạt động thư viện.",
     },
+    operations: {
+      title: "Vận hành",
+      subtitle: "Library OS gom cảnh báo, workflow và gợi ý hành động.",
+    },
     books: {
       title: "Quản lý sách",
       subtitle: canManageLibrary
@@ -296,6 +305,10 @@ function Layout({ user, onLogout }) {
       title: "Danh mục sách",
       subtitle: "Chuẩn hóa thể loại và nhà xuất bản dùng khi nhập sách.",
     },
+    permissions: {
+      title: "Phân quyền",
+      subtitle: "Kiểm tra quyền theo vai trò admin, thủ thư và độc giả.",
+    },
     borrow: {
       title: "Mượn / Trả sách",
       subtitle: "Quản lý phiếu mượn, gia hạn và trả sách.",
@@ -321,6 +334,16 @@ function Layout({ user, onLogout }) {
         onNavigateToBorrow={() => handleChangePage("borrow")}
         onNavigateToOverdue={() => handleChangePage("overdue")}
         isAdmin={canManageLibrary}
+      />
+    ),
+    operations: (
+      <Operations
+        isAdmin={canManageLibrary}
+        onNavigateToBooks={() => handleChangePage("books")}
+        onNavigateToBorrow={() => handleChangePage("borrow")}
+        onNavigateToOverdue={() => handleChangePage("overdue")}
+        onNavigateToReaders={() => handleChangePage("readers")}
+        onNavigateToAnalytics={() => handleChangePage("analytics")}
       />
     ),
     analytics: (
@@ -363,6 +386,7 @@ function Layout({ user, onLogout }) {
       <Dashboard />
     ),
     catalog: canManageLibrary ? <Catalog /> : <Dashboard />,
+    permissions: isAdmin ? <Permissions /> : <Dashboard />,
     borrow: <Borrow isAdmin={canManageLibrary} />,
     overdue: <Overdue isAdmin={canManageLibrary} />,
     activity: isAdmin ? <ActivityLog /> : <Dashboard />,
@@ -640,6 +664,8 @@ function Layout({ user, onLogout }) {
           </div>
         </div>
       )}
+
+      <LibraryAssistant canManageLibrary={canManageLibrary} isAdmin={isAdmin} onNavigate={handleChangePage} />
     </div>
   );
 }

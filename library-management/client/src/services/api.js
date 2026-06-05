@@ -10,6 +10,57 @@ function readSavedUser() {
   }
 }
 
+function repairMojibakeText(value) {
+  if (typeof value !== "string") return value;
+
+  let text = value;
+
+  if (/[ÃÂÆÄÐ]/.test(text) && typeof TextDecoder !== "undefined") {
+    try {
+      const bytes = Uint8Array.from(Array.from(text, (char) => char.charCodeAt(0) & 255));
+      const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      if ((decoded.match(/[ÃÂÆÄÐ]/g) || []).length < (text.match(/[ÃÂÆÄÐ]/g) || []).length) {
+        text = decoded;
+      }
+    } catch {
+      // Keep original text if it was not a byte-level mojibake string.
+    }
+  }
+
+  return text
+    .replace(/Th[?�] lo[?�]i b[?�]n quan t[?�]m/gi, "Thể loại bạn quan tâm")
+    .replace(/S[?�]ch qu[?�] h[?�]n/gi, "Sách quá hạn")
+    .replace(/s[?�]ch qu[?�] h[?�]n/gi, "sách quá hạn")
+    .replace(/qu[?�] h[?�]n/gi, "quá hạn")
+    .replace(/s[?�]p d[?�]n h[?�]n/gi, "sắp đến hạn")
+    .replace(/h[?�]n tr[?�]/gi, "hạn trả")
+    .replace(/[đd][?�]t tr[?�][?�]c/gi, "đặt trước")
+    .replace(/x[?�] l[?�]/gi, "xử lý")
+    .replace(/c[?�] th[?�]/gi, "có thể")
+    .replace(/hi[?�]n c[?�]n/gi, "hiện còn")
+    .replace(/c[?�]n ([0-9]+) b[?�]n/gi, "còn $1 bản")
+    .replace(/b[?�]n quan/gi, "bạn quan")
+    .replace(/b[?�]n s[?�]n/gi, "bản sẵn")
+    .replace(/([0-9]+) b[?�]n/gi, "$1 bản")
+    .replace(/d[?�] li[?�]u/gi, "dữ liệu")
+    .replace(/kh[?�]ng/gi, "không")
+    .replace(/th[?�]ng b[?�]o/gi, "thông báo")
+    .replace(/m[?�][ượu]n/gi, "mượn")
+    .replace(/tr[?�] s[?�]ch/gi, "trả sách")
+    .replace(/d[?�]c gi[?�]/gi, "độc giả")
+    .replace(/t[?�]i kho[?�]n/gi, "tài khoản")
+    .replace(/qu[?�]n tr[?�] vi[êe]n/gi, "quản trị viên");
+}
+
+export function sanitizeVietnameseText(value) {
+  if (typeof value === "string") return repairMojibakeText(value);
+  if (Array.isArray(value)) return value.map(sanitizeVietnameseText);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeVietnameseText(item)]));
+  }
+  return value;
+}
+
 async function handleResponse(response) {
   const content = await response.text();
   let payload = {};
@@ -30,7 +81,7 @@ async function handleResponse(response) {
     throw new Error(payload.error || payload.message || response.statusText || "Lỗi API");
   }
 
-  return payload;
+  return sanitizeVietnameseText(payload);
 }
 
 function request(path, options = {}) {

@@ -367,6 +367,12 @@ function decorateLoans(data) {
       fineStatus: loan.fineStatus || (lateDays > 0 ? "unpaid" : "none"),
       finePaidDate: loan.finePaidDate || null,
       fineHandledBy: loan.fineHandledBy || "",
+      finePaymentMethod: loan.finePaymentMethod || "",
+      finePaymentBank: loan.finePaymentBank || "",
+      fineTransactionCode: loan.fineTransactionCode || "",
+      finePaymentNote: loan.finePaymentNote || "",
+      finePaymentSubmittedBy: loan.finePaymentSubmittedBy || "",
+      finePaymentConfirmedAt: loan.finePaymentConfirmedAt || null,
     };
   });
 }
@@ -1125,6 +1131,12 @@ async function handleLoans(req, res, pathname) {
       fineStatus: "none",
       finePaidDate: null,
       fineHandledBy: "",
+      finePaymentMethod: "",
+      finePaymentBank: "",
+      fineTransactionCode: "",
+      finePaymentNote: "",
+      finePaymentSubmittedBy: "",
+      finePaymentConfirmedAt: null,
     };
 
     data.loans.push(loan);
@@ -1140,8 +1152,6 @@ async function handleLoans(req, res, pathname) {
   }
 
   if (req.method === "PATCH" && fineMatch) {
-    if (!requireAdmin(data, req, res)) return;
-
     const loanId = Number(fineMatch[1]);
     const loan = data.loans.find((item) => item.id === loanId);
     if (!loan) {
@@ -1156,16 +1166,61 @@ async function handleLoans(req, res, pathname) {
       return;
     }
 
+    const isStaff = isStaffRequest(data, req);
+    if (!isStaff) {
+      const reader = requireReaderForUser(data, req, res);
+      if (!reader) return;
+
+      if (loan.readerId !== reader.id) {
+        sendJson(res, 403, { error: "Ban chi co the thanh toan tien phat cua chinh minh." });
+        return;
+      }
+
+      if (fineStatus !== "paid") {
+        sendJson(res, 403, { error: "Doc gia chi co the nop phat online, khong the mien hoac doi trang thai phat." });
+        return;
+      }
+    }
+
+    const paymentMethod = String(body.paymentMethod || "").trim().toLowerCase();
+    const bankName = String(body.bankName || "").trim();
+    const transactionCode = String(body.transactionCode || "").trim();
+    const paymentNote = String(body.paymentNote || "").trim();
+
+    if (fineStatus === "paid") {
+      if (paymentMethod !== "bank_transfer") {
+        sendJson(res, 400, { error: "Vui long chon hinh thuc thanh toan chuyen khoan ngan hang." });
+        return;
+      }
+
+      if (!bankName || !transactionCode) {
+        sendJson(res, 400, { error: "Vui long nhap ngan hang va ma giao dich thanh toan." });
+        return;
+      }
+    }
+
     const before = {
       fineStatus: loan.fineStatus || "none",
       finePaidDate: loan.finePaidDate || null,
       fineHandledBy: loan.fineHandledBy || "",
+      finePaymentMethod: loan.finePaymentMethod || "",
+      finePaymentBank: loan.finePaymentBank || "",
+      fineTransactionCode: loan.fineTransactionCode || "",
+      finePaymentNote: loan.finePaymentNote || "",
+      finePaymentSubmittedBy: loan.finePaymentSubmittedBy || "",
+      finePaymentConfirmedAt: loan.finePaymentConfirmedAt || null,
     };
     loan.fineStatus = fineStatus;
     loan.finePaidDate = fineStatus === "paid" ? normalizeDate() : null;
     loan.fineHandledBy = fineStatus === "paid" || fineStatus === "waived" ? getActorLabel(data, req) : "";
+    loan.finePaymentMethod = fineStatus === "paid" ? paymentMethod : "";
+    loan.finePaymentBank = fineStatus === "paid" ? bankName : "";
+    loan.fineTransactionCode = fineStatus === "paid" ? transactionCode : "";
+    loan.finePaymentNote = fineStatus === "paid" ? paymentNote : "";
+    loan.finePaymentSubmittedBy = fineStatus === "paid" ? getActorLabel(data, req) : "";
+    loan.finePaymentConfirmedAt = fineStatus === "paid" ? new Date().toISOString() : null;
 
-    addActivity(data, req, "loan.fine_updated", `Cap nhat tien phat phieu #${loan.id}: ${fineStatus}.`, {
+    addActivity(data, req, "loan.fine_updated", `Cap nhat tien phat phieu #${loan.id}: ${fineStatus}${fineStatus === "paid" ? " qua chuyen khoan ngan hang" : ""}.`, {
       loanId,
       readerId: loan.readerId,
       bookId: loan.bookId,
@@ -1174,6 +1229,12 @@ async function handleLoans(req, res, pathname) {
         fineStatus: loan.fineStatus,
         finePaidDate: loan.finePaidDate,
         fineHandledBy: loan.fineHandledBy,
+        finePaymentMethod: loan.finePaymentMethod,
+        finePaymentBank: loan.finePaymentBank,
+        fineTransactionCode: loan.fineTransactionCode,
+        finePaymentNote: loan.finePaymentNote,
+        finePaymentSubmittedBy: loan.finePaymentSubmittedBy,
+        finePaymentConfirmedAt: loan.finePaymentConfirmedAt,
       },
     });
     await writeData(data);
@@ -1645,6 +1706,12 @@ async function handleReservations(req, res, pathname) {
         fineStatus: "none",
         finePaidDate: null,
         fineHandledBy: "",
+        finePaymentMethod: "",
+        finePaymentBank: "",
+        fineTransactionCode: "",
+        finePaymentNote: "",
+        finePaymentSubmittedBy: "",
+        finePaymentConfirmedAt: null,
         reservationId: reservation.id,
       };
       data.loans.push(createdLoan);

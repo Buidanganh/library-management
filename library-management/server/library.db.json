@@ -12,14 +12,14 @@
       "fullName": "Bùi Đăng Anh",
       "email": "buidanganh@gmail.com",
       "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
-      "role": "user"
+      "role": "librarian"
     },
     {
       "id": 3,
       "fullName": "Bùi Đăng Anh",
       "email": "buidanganh0303@gmail.com",
       "passwordHash": "15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225",
-      "role": "user"
+      "role": "librarian"
     }
   ],
   "books": [
@@ -1372,6 +1372,216 @@
       "condition": "good",
       "shelfLocation": "Kệ A1",
       "description": "Nguyên lý xây dựng kiến trúc phần mềm bền vững."
+    },
+    {
+      "id": 101,
+      "title": "Clean Code",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2008",
+      "quantity": 8,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Hướng dẫn viết mã sạch và dễ bảo trì."
+    },
+    {
+      "id": 102,
+      "title": "Design Patterns",
+      "imageUrl": "",
+      "author": "Erich Gamma",
+      "category": "Lập trình",
+      "publisher": "Addison-Wesley",
+      "year": "1994",
+      "quantity": 5,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A2",
+      "description": "Các mẫu thiết kế phần mềm phổ biến."
+    },
+    {
+      "id": 103,
+      "title": "JavaScript: The Good Parts",
+      "imageUrl": "",
+      "author": "Douglas Crockford",
+      "category": "Lập trình",
+      "publisher": "O'Reilly Media",
+      "year": "2008",
+      "quantity": 6,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ B3",
+      "description": "Tổng hợp những phần tốt nhất của JavaScript."
+    },
+    {
+      "id": 104,
+      "title": "Deep Learning",
+      "imageUrl": "",
+      "author": "Ian Goodfellow",
+      "category": "AI/ML",
+      "publisher": "MIT Press",
+      "year": "2016",
+      "quantity": 4,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ C1",
+      "description": "Giới thiệu các thuật toán học sâu."
+    },
+    {
+      "id": 105,
+      "title": "Clean Architecture",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2017",
+      "quantity": 7,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Nguyên lý xây dựng kiến trúc phần mềm bền vững."
+    },
+    {
+      "id": 106,
+      "title": "Clean Code",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2008",
+      "quantity": 8,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Hướng dẫn viết mã sạch và dễ bảo trì."
+    },
+    {
+      "id": 107,
+      "title": "Design Patterns",
+      "imageUrl": "",
+      "author": "Erich Gamma",
+      "category": "Lập trình",
+      "publisher": "Addison-Wesley",
+      "year": "1994",
+      "quantity": 5,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A2",
+      "description": "Các mẫu thiết kế phần mềm phổ biến."
+    },
+    {
+      "id": 108,
+      "title": "JavaScript: The Good Parts",
+      "imageUrl": "",
+      "author": "Douglas Crockford",
+      "category": "Lập trình",
+      "publisher": "O'Reilly Media",
+      "year": "2008",
+      "quantity": 6,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ B3",
+      "description": "Tổng hợp những phần tốt nhất của JavaScript."
+    },
+    {
+      "id": 109,
+      "title": "Deep Learning",
+      "imageUrl": "",
+      "author": "Ian Goodfellow",
+      "category": "AI/ML",
+      "publisher": "MIT Press",
+      "year": "2016",
+      "quantity": 4,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ C1",
+      "description": "Giới thiệu các thuật toán học sâu."
+    },
+    {
+      "id": 110,
+      "title": "Clean Architecture",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2017",
+      "quantity": 7,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Nguyên lý xây dựng kiến trúc phần mềm bền vững."
+    },
+    {
+      "id": 111,
+      "title": "Clean Code",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2008",
+      "quantity": 8,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Hướng dẫn viết mã sạch và dễ bảo trì."
+    },
+    {
+      "id": 112,
+      "title": "Design Patterns",
+      "imageUrl": "",
+      "author": "Erich Gamma",
+      "category": "Lập trình",
+      "publisher": "Addison-Wesley",
+      "year": "1994",
+      "quantity": 5,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A2",
+      "description": "Các mẫu thiết kế phần mềm phổ biến."
+    },
+    {
+      "id": 113,
+      "title": "JavaScript: The Good Parts",
+      "imageUrl": "",
+      "author": "Douglas Crockford",
+      "category": "Lập trình",
+      "publisher": "O'Reilly Media",
+      "year": "2008",
+      "quantity": 6,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ B3",
+      "description": "Tổng hợp những phần tốt nhất của JavaScript."
+    },
+    {
+      "id": 114,
+      "title": "Deep Learning",
+      "imageUrl": "",
+      "author": "Ian Goodfellow",
+      "category": "AI/ML",
+      "publisher": "MIT Press",
+      "year": "2016",
+      "quantity": 4,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ C1",
+      "description": "Giới thiệu các thuật toán học sâu."
+    },
+    {
+      "id": 115,
+      "title": "Clean Architecture",
+      "imageUrl": "",
+      "author": "Robert C. Martin",
+      "category": "Lập trình",
+      "publisher": "Prentice Hall",
+      "year": "2017",
+      "quantity": 7,
+      "isbn": "",
+      "condition": "good",
+      "shelfLocation": "Kệ A1",
+      "description": "Nguyên lý xây dựng kiến trúc phần mềm bền vững."
     }
   ],
   "readers": [
@@ -1684,20 +1894,6 @@
       "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=Ngo%20Minh%20Thu"
     },
     {
-      "id": 45,
-      "name": "Duong Gia Huy",
-      "email": "duong.gia.huy45@example.com",
-      "phone": "0930000045",
-      "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=Duong%20Gia%20Huy"
-    },
-    {
-      "id": 46,
-      "name": "Ly Bao Tran",
-      "email": "ly.bao.tran46@example.com",
-      "phone": "0930000046",
-      "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=Ly%20Bao%20Tran"
-    },
-    {
       "id": 47,
       "name": "Mai Thanh Lam",
       "email": "mai.thanh.lam47@example.com",
@@ -1917,6 +2113,124 @@
     ]
   },
   "activities": [
+    {
+      "id": 31,
+      "type": "book.bulk_created",
+      "message": "Nhap nhanh 5 sach.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-08T02:51:16.881Z",
+      "metadata": {
+        "count": 5
+      }
+    },
+    {
+      "id": 30,
+      "type": "book.bulk_created",
+      "message": "Nhap nhanh 5 sach.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-08T02:51:15.754Z",
+      "metadata": {
+        "count": 5
+      }
+    },
+    {
+      "id": 29,
+      "type": "book.bulk_created",
+      "message": "Nhap nhanh 5 sach.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-08T02:51:13.980Z",
+      "metadata": {
+        "count": 5
+      }
+    },
+    {
+      "id": 28,
+      "type": "reader.deleted",
+      "message": "Xoa doc gia: Duong Gia Huy.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-07T17:20:45.115Z",
+      "metadata": {
+        "readerId": 45,
+        "email": "duong.gia.huy45@example.com",
+        "readerName": "Duong Gia Huy",
+        "before": {
+          "id": 45,
+          "name": "Duong Gia Huy",
+          "email": "duong.gia.huy45@example.com",
+          "phone": "0930000045",
+          "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=Duong%20Gia%20Huy"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "reader.deleted",
+      "message": "Xoa doc gia: Ly Bao Tran.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-07T17:20:42.666Z",
+      "metadata": {
+        "readerId": 46,
+        "email": "ly.bao.tran46@example.com",
+        "readerName": "Ly Bao Tran",
+        "before": {
+          "id": 46,
+          "name": "Ly Bao Tran",
+          "email": "ly.bao.tran46@example.com",
+          "phone": "0930000046",
+          "profileImageUrl": "https://api.dicebear.com/9.x/initials/svg?seed=Ly%20Bao%20Tran"
+        }
+      }
+    },
+    {
+      "id": 26,
+      "type": "reader.role_updated",
+      "message": "Cap nhat vai tro tai khoan doc gia: Anh Anh thanh librarian.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-05T11:11:39.593Z",
+      "metadata": {
+        "readerId": 6,
+        "readerName": "Anh Anh",
+        "userId": 3,
+        "email": "buidanganh0303@gmail.com",
+        "before": {
+          "id": 3,
+          "status": "active",
+          "role": "user"
+        },
+        "after": {
+          "id": 3,
+          "status": "active",
+          "role": "librarian"
+        },
+        "changedStatus": false,
+        "changedRole": true
+      }
+    },
+    {
+      "id": 25,
+      "type": "reader.role_updated",
+      "message": "Cap nhat vai tro tai khoan doc gia: Bùi Đăng Anh thanh librarian.",
+      "actor": "Quan tri vien",
+      "createdAt": "2026-06-05T11:11:37.881Z",
+      "metadata": {
+        "readerId": 4,
+        "readerName": "Bùi Đăng Anh",
+        "userId": 2,
+        "email": "buidanganh@gmail.com",
+        "before": {
+          "id": 2,
+          "status": "active",
+          "role": "user"
+        },
+        "after": {
+          "id": 2,
+          "status": "active",
+          "role": "librarian"
+        },
+        "changedStatus": false,
+        "changedRole": true
+      }
+    },
     {
       "id": 24,
       "type": "review.created",

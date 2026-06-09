@@ -9,21 +9,21 @@ import Borrow from "../pages/Borrow";
 import Overdue from "../pages/Overdue";
 
 function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
+ return (
+ <Routes>
+ <Route path="/login" element={<Login />} />
 
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="books" element={<Books />} />
-        <Route path="books/create" element={<BookCreate />} />
-        <Route path="readers" element={<Readers />} />
-        <Route path="borrow" element={<Borrow />} />
-        <Route path="overdue" element={<Overdue />} />
-      </Route>
-    </Routes>
-  );
+ <Route path="/" element={<Layout />}>
+ <Route index element={<Navigate to="/dashboard" replace />} />
+ <Route path="dashboard" element={<Dashboard />} />
+ <Route path="books" element={<Books />} />
+ <Route path="books/create" element={<BookCreate />} />
+ <Route path="readers" element={<Readers />} />
+ <Route path="borrow" element={<Borrow />} />
+ <Route path="overdue" element={<Overdue />} />
+ </Route>
+ </Routes>
+ );
 }
 
 export default AppRoutes;

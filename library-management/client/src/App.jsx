@@ -5,7 +5,7 @@ import Register from "./pages/Register";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-const MOJIBAKE_PATTERN = /Ã|Æ|Â|â€/;
+const MOJIBAKE_PATTERN = /\uFFFD|\u00C3|\u00C2|\u00C4|\u00C6|\u00D0/;
 
 function readSavedUser() {
   const savedUser = localStorage.getItem("libraryUser");
